@@ -15,7 +15,7 @@ const customerOrderRoutes = require("../routes/customerOrderRoutes");
 const categoryRoutes = require("../routes/categoryRoutes");
 const brandRoutes = require("../routes/brandRoutes");
 const couponRoutes = require("../routes/couponRoutes");
-const returnRequestRoutes = require("../routes/returnRequestRoutes");
+// const returnRequestRoutes = require("../routes/returnRequestRoutes");
 const referralRoutes = require("../routes/referralRoutes");
 
 const attributeRoutes = require("../routes/attributeRoutes");
@@ -131,7 +131,7 @@ app.use("/api/push-notification", pushNotificationRoutes);
 app.use("/api/customer-notifications", customerNotificationRoutes);
 app.use("/api/webhooks", webhookRoutes);
 
-app.use("/api/return-request", returnRequestRoutes);
+// app.use("/api/return-request", returnRequestRoutes);
 app.use("/api/referral", referralRoutes);
 //if you not use admin dashboard then these two route will not needed.
 app.use("/api/admin", adminRoutes);

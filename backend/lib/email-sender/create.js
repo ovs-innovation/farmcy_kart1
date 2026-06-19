@@ -121,10 +121,10 @@ function generateCustomerInformation(doc, invoice) {
     .text("Invoice To", 200, 140, { align: "right" })
     .font("Helvetica")
     .fontSize(10)
-    .text(invoice.user_info.name, 200, 155, { align: "right" })
-    .text(invoice.user_info.email, 200, 170, { align: "right" })
-    .text(invoice?.user_info?.phone, 200, 200, { align: "right" })
-    .text(invoice?.user_info?.address, 200, 185, { align: "right" });
+    .text(invoice?.user_info?.name || "Customer", 200, 155, { align: "right" })
+    .text(invoice?.user_info?.email || "", 200, 170, { align: "right" })
+    .text(invoice?.user_info?.phone || "", 200, 200, { align: "right" })
+    .text(invoice?.user_info?.address || "", 200, 185, { align: "right" });
 
   // doc
   //   .fontSize(10)

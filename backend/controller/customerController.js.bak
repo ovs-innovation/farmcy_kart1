@@ -193,16 +193,6 @@ const sendPhoneEmailOTP = async (req, res) => {
     }
 
     if (!user && intent === "signup") {
-      const myReferralCode = 'FK' + Math.random().toString(36).substring(2, 8).toUpperCase();
-      let referredBy = undefined;
-      
-      if (req.body.referralCode) {
-        const referrer = await Customer.findOne({ referralCode: req.body.referralCode });
-        if (referrer) {
-           referredBy = referrer._id;
-        }
-      }
-
       user = new Customer({
         name: `User ${phoneNorm.slice(-4)}`,
         email: buildPlaceholderEmail(phoneNorm),
@@ -210,19 +200,8 @@ const sendPhoneEmailOTP = async (req, res) => {
         phoneVerified: false,
         authProvider: "phone",
         profileComplete: false,
-        referralCode: myReferralCode,
-        referredBy
       });
       await user.save();
-
-      if (referredBy) {
-         const Referral = require("../models/Referral");
-         await new Referral({
-           referrer: referredBy,
-           referredUser: user._id,
-           status: "pending"
-         }).save();
-      }
     }
 
     // Check resend cooldown (60 seconds)
@@ -554,16 +533,6 @@ const registerCustomerDirect = async (req, res) => {
       });
     }
 
-    const myReferralCode = 'FK' + Math.random().toString(36).substring(2, 8).toUpperCase();
-    let referredBy = undefined;
-    
-    if (req.body.referralCode) {
-      const referrer = await Customer.findOne({ referralCode: req.body.referralCode });
-      if (referrer) {
-         referredBy = referrer._id;
-      }
-    }
-
     const newUser = new Customer({
       name,
       email,
@@ -571,20 +540,9 @@ const registerCustomerDirect = async (req, res) => {
       firebaseUid: uid,
       role: "customer",
       emailVerified: false,
-      referralCode: myReferralCode,
-      referredBy
     });
 
     await newUser.save();
-
-    if (referredBy) {
-       const Referral = require("../models/Referral");
-       await new Referral({
-         referrer: referredBy,
-         referredUser: newUser._id,
-         status: "pending"
-       }).save();
-    }
 
     // Firebase handles email verification links natively now, so no custom OTP email is sent.
     

@@ -647,29 +647,25 @@ const sendEmailInvoiceToCustomer = async (req, res) => {
 
 const requestRefund = async (req, res) => {
   try {
-    const order = await Order.findOne({ _id: req.params.id, user: req.user._id });
+    const order = await Order.findById(req.params.id);
     if (!order) {
       return res.status(404).send({ message: "Order not found" });
     }
-
+    
+    // Only allow refund if order is Delivered
     if (order.status !== "Delivered") {
       return res.status(400).send({ message: "Refund can only be requested for Delivered orders." });
     }
 
-    const {
-      buildEligibilityResult,
-    } = require("../lib/return-request-utils");
-
-    const eligibility = await buildEligibilityResult(order, req.user._id);
-    if (!eligibility.eligible) {
-      return res.status(400).send({ message: eligibility.reason });
-    }
-
-    return res.status(400).send({
-      message:
-        "Please submit a return request from the Returns section in the app. Legacy refund endpoint is disabled.",
-      code: "USE_RETURN_REQUEST_API",
-    });
+    order.status = "Refund Requested";
+    order.refund = {
+      reason: req.body.reason,
+      note: req.body.note || "",
+      requestedAt: new Date(),
+    };
+    
+    await order.save();
+    res.send({ message: "Refund Requested Successfully!", order });
   } catch (err) {
     res.status(500).send({ message: err.message });
   }

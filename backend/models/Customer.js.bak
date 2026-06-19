@@ -239,20 +239,6 @@ const customerSchema = new mongoose.Schema(
       type: Date,
       required: false,
     },
-    referralCode: {
-      type: String,
-      unique: true,
-      sparse: true,
-    },
-    referredBy: {
-      type: mongoose.Schema.Types.ObjectId,
-      ref: "Customer",
-      required: false,
-    },
-    totalReferralEarnings: {
-      type: Number,
-      default: 0,
-    },
   },
   {
     timestamps: true,
