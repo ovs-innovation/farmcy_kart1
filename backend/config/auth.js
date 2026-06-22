@@ -16,7 +16,7 @@ const signInToken = (user) => {
     },
     process.env.JWT_SECRET || "fallback_jwt_secret",
     {
-      expiresIn: "1d",
+      expiresIn: "7d",
     }
   );
 };

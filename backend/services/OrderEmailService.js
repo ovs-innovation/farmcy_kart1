@@ -59,7 +59,10 @@ class OrderEmailService {
 
   static async sendOrderConfirmation(order) {
     const contact = await resolveCustomerContact(order, order.user_info || {});
-    const customerEmail = contact.email;
+   const customerEmail =
+  contact.email && String(contact.email).trim()
+    ? String(contact.email).trim()
+    : "";
     if (!customerEmail) return false;
 
     try {

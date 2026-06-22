@@ -478,4 +478,20 @@ exports.updateReturnRequestStatus = async (req, res) => {
   }
 };
 
+exports.getReturnReasons = async (req, res) => {
+  try {
+    const reasons = [
+      "Wrong Item Delivered",
+      "Damaged Product",
+      "Expired Medicine",
+      "Missing Item",
+      "Not Required",
+      "Other",
+    ];
+    res.status(200).json(reasons);
+  } catch (error) {
+    res.status(500).json({ message: "Failed to fetch return reasons", error: error.message });
+  }
+};
+
 module.exports = exports;

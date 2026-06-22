@@ -66,8 +66,9 @@ const customerSchema = new mongoose.Schema(
     }],
     email: {
       type: String,
-      required: true,
+      required: false,
       unique: true,
+      sparse: true,
       lowercase: true,
     },
     phone: {
@@ -252,6 +253,19 @@ const customerSchema = new mongoose.Schema(
     totalReferralEarnings: {
       type: Number,
       default: 0,
+    },
+    gender: {
+      type: String,
+      enum: ['Male', 'Female', 'Other'],
+      required: false,
+    },
+    age: {
+      type: Number,
+      required: false,
+    },
+    dob: {
+      type: Date,
+      required: false,
     },
   },
   {

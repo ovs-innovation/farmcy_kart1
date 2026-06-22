@@ -68,24 +68,20 @@ const sendViaResend = async (mail) => {
     payload.tags = [{ name: "type", value: String(mail.emailType) }];
   }
 
-if (Array.isArray(mail.attachments) && mail.attachments.length > 0) {
-  payload.attachments = mail.attachments.map((att) => {
-    const content = Buffer.isBuffer(att.content)
-      ? att.content.toString("base64")
-      : typeof att.content === "string"
-        ? att.content
-        : Buffer.from(att.content || "").toString("base64");
-
-    return {
-      filename: att.filename || "attachment",
-      content,
-      content_type:
-        att.contentType ||
-        att.content_type ||
-        "application/octet-stream",
-    };
-  });
-}
+  if (Array.isArray(mail.attachments) && mail.attachments.length > 0) {
+    payload.attachments = mail.attachments.map((att) => {
+      const content = Buffer.isBuffer(att.content)
+        ? att.content.toString("base64")
+        : typeof att.content === "string"
+          ? att.content
+          : Buffer.from(att.content || "").toString("base64");
+      return {
+        filename: att.filename || "attachment",
+        content,
+        content_type: att.contentType || att.content_type || "application/octet-stream",
+      };
+    });
+  }
 
   const { data } = await axios.post("https://api.resend.com/emails", payload, {
     headers: {

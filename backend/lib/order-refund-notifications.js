@@ -5,6 +5,8 @@ const admin = require("../config/firebase-admin");
 const { sendEmail } = require("./email-sender/sender");
 const { refundSuccessEmail } = require("./email-sender/templates/refund-success");
 const { storeBaseUrl } = require("./email-sender/simple-templates");
+const { resolveCustomerContact } = require("./customer-contact");
+const { notifyCustomerInbox } = require("./customer-inbox-notifications");
 
 const formatRefundDate = (date = new Date()) =>
   date.toLocaleDateString("en-IN", {
@@ -25,7 +27,8 @@ const sendRefundCompletedNotifications = async (order) => {
     return { skipped: true, reason: "already_sent" };
   }
 
-  const email = order.user_info?.email?.trim();
+  const contact = await resolveCustomerContact(order, order.user_info || {});
+  const email = contact.email;
   if (!email) {
     console.warn(
       `[refund] No customer email for order ${order._id}; skipping refund notification`
@@ -77,6 +80,14 @@ const sendRefundCompletedNotifications = async (order) => {
   );
 
   await sendRefundPushNotification(order, shopName);
+
+  await notifyCustomerInbox(order.user, {
+    title: "Refund Completed",
+    description: `Your refund of ${formatAmount(order.total, currency)} for order #${order.invoice} has been processed.`,
+    notificationType: "refunded",
+    clickAction: `/order/${order._id}`,
+    campaignId: order._id,
+  });
 
   return { sent: true };
 };

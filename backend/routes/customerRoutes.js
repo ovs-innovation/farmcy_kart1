@@ -47,6 +47,7 @@ const {
   passwordVerificationLimit,
   emailVerificationLimit,
 } = require("../lib/email-sender/sender");
+const { getOrderCustomer } = require("../controller/customerOrderController");
 const { isAuth, isAdmin } = require("../config/auth");
 
 //login with phone
@@ -174,6 +175,10 @@ router.delete("/cart/:customerId/remove/:productId", isAuth, removeFromCart);
 
 // Clear entire cart
 router.delete("/cart/:customerId/clear", isAuth, clearCart);
+
+// Customer order history (must be before /:id wildcard)
+router.get("/me/orders", isAuth, getOrderCustomer);
+router.get("/orders", isAuth, getOrderCustomer);
 
 // ─────────────────────────────────────────────────────────────────────────────
 

@@ -30,17 +30,31 @@ const buildPlaceholderEmail = (phone) => {
 const isPlaceholderEmail = (email) =>
   !!email && String(email).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
 
+const isFakeName = (name) => {
+  if (!name || !String(name).trim()) return false;
+  const trimmed = String(name).trim();
+  return trimmed.startsWith("User ") && /^User\s\d+$/i.test(trimmed);
+};
+
+const isFakeEmail = (email) => isPlaceholderEmail(email);
+
+const sanitizeProfileForClient = (customer) => ({
+  name: isFakeName(customer?.name) ? "" : (customer?.name || ""),
+  email: isFakeEmail(customer?.email) ? "" : (customer?.email || ""),
+});
+
 const computeProfileComplete = (customer) => {
   if (!customer) return false;
   const hasName =
     customer.name &&
-    customer.name.trim().length > 1 &&
-    !/^user\s+\d+$/i.test(customer.name.trim());
+    String(customer.name).trim().length > 0 &&
+    !isFakeName(customer.name);
   const hasPhone = !!normalizePhone(customer.phone);
-  const hasAddress =
-    !!(customer.address && String(customer.address).trim()) ||
-    (Array.isArray(customer.shippingAddress) && customer.shippingAddress.length > 0);
-  return !!(hasName && hasPhone && hasAddress);
+  const hasEmail =
+    customer.email &&
+    String(customer.email).trim().length > 0 &&
+    !isFakeEmail(customer.email);
+  return !!(hasName && hasPhone && hasEmail);
 };
 
 const sendCustomerAuthResponse = async (res, customer, message, extra = {}) => {
@@ -58,16 +72,22 @@ const sendCustomerAuthResponse = async (res, customer, message, extra = {}) => {
     await customerWithCart.save();
   }
 
+  if (!customerWithCart.referralCode) {
+    customerWithCart.referralCode = 'FK' + Math.random().toString(36).substring(2, 8).toUpperCase();
+    await customerWithCart.save();
+  }
+
   res.send({
     token: signInToken(customerWithCart),
     _id: customerWithCart._id,
-    name: customerWithCart.name,
-    email: customerWithCart.email,
+    name: sanitizeProfileForClient(customerWithCart).name,
+    email: sanitizeProfileForClient(customerWithCart).email,
     address: customerWithCart.address,
     phone: customerWithCart.phone,
     image: customerWithCart.image,
     role: customerWithCart.role || "customer",
     cart: customerWithCart.cart,
+    referralCode: customerWithCart.referralCode,
     phoneVerified: !!customerWithCart.phoneVerified,
     emailVerified: !!customerWithCart.emailVerified,
     profileComplete,
@@ -1066,8 +1086,7 @@ const signupPhone = async (req, res) => {
     if (!customer) {
       isNewUser = true;
       customer = new Customer({
-        name: `User ${phoneNorm.slice(-4)}`,
-        email: buildPlaceholderEmail(phoneNorm),
+        name: "",
         phone: phoneNorm,
         firebaseUid: uid,
         role: "customer",
@@ -1249,13 +1268,10 @@ const completeProfile = async (req, res) => {
       return res.status(401).send({ message: "Unauthorized" });
     }
 
-    const { name, email, address, phone, city, zipCode, country } = req.body;
+    const { name, email, address, phone, city, zipCode, country, gender, dob } = req.body;
 
     if (!name || !String(name).trim()) {
       return res.status(400).send({ message: "Name is required." });
-    }
-    if (!address || !String(address).trim()) {
-      return res.status(400).send({ message: "Address is required." });
     }
     if (!phone || !normalizePhone(phone)) {
       return res.status(400).send({ message: "Valid phone number is required." });
@@ -1267,27 +1283,27 @@ const completeProfile = async (req, res) => {
     }
 
     const emailInput = email ? String(email).toLowerCase().trim() : "";
-    if (emailInput) {
-      if (isPlaceholderEmail(emailInput)) {
-        return res.status(400).send({ message: "Please enter a valid email address." });
-      }
-      if (!customer.emailVerified || customer.email !== emailInput) {
-        return res.status(400).send({
-          message: "Please verify your email with the code we sent before saving.",
-          code: "EMAIL_NOT_VERIFIED",
-        });
-      }
+    if (!emailInput) {
+      return res.status(400).send({ message: "Email is required." });
     }
+    if (isPlaceholderEmail(emailInput)) {
+      return res.status(400).send({ message: "Please enter a valid email address." });
+    }
+    customer.email = emailInput;
+    customer.emailVerified = false;
 
     customer.name = String(name).trim();
-    customer.address = String(address).trim();
+    if (address) customer.address = String(address).trim();
+    if (gender) customer.gender = gender;
+    if (dob) customer.dob = dob;
+    
     if (phone) customer.phone = normalizePhone(phone);
     if (city) customer.city = city;
     if (country) customer.country = country;
     if (zipCode) customer.zipCode = zipCode;
 
     const shipPhone = normalizePhone(phone) || customer.phone;
-    if (!customer.shippingAddress?.length) {
+    if (address && !customer.shippingAddress?.length) {
       customer.shippingAddress = [
         {
           name: customer.name,
@@ -1895,7 +1911,7 @@ const deleteShippingAddress = async (req, res) => {
 const updateCustomer = async (req, res) => {
   try {
     // Validate the input
-    const { name, email, address, phone, image, cart } = req.body;
+    const { name, email, address, phone, image, cart, gender } = req.body;
 
     // Find the customer by ID
     const customer = await Customer.findById(req.params.id);
@@ -1909,10 +1925,24 @@ const updateCustomer = async (req, res) => {
     if (email) {
       const normalizedEmail = String(email).toLowerCase().trim();
       if (normalizedEmail !== String(customer.email).toLowerCase()) {
-        return res.status(400).send({
-          message: "Verify your new email with the code we sent before saving.",
-          code: "EMAIL_CHANGE_REQUIRES_VERIFICATION",
-        });
+        // If current email is a placeholder, allow setting it directly
+        if (isPlaceholderEmail(customer.email)) {
+          const existingEmail = await Customer.findOne({
+            email: normalizedEmail,
+            _id: { $ne: customer._id },
+          });
+          if (existingEmail) {
+            return res.status(400).send({
+              message: "Email already in use by another account.",
+            });
+          }
+          customer.email = normalizedEmail;
+        } else {
+          return res.status(400).send({
+            message: "Verify your new email with the code we sent before saving.",
+            code: "EMAIL_CHANGE_REQUIRES_VERIFICATION",
+          });
+        }
       }
     }
 
@@ -1921,6 +1951,13 @@ const updateCustomer = async (req, res) => {
     if (address) customer.address = address;
     if (phone) customer.phone = phone;
     if (image) customer.image = image;
+    if (gender !== undefined) {
+      customer.gender = gender ? gender : undefined;
+    }
+    if (req.body.age !== undefined) {
+      const parsedAge = parseInt(req.body.age, 10);
+      customer.age = isNaN(parsedAge) ? undefined : parsedAge;
+    }
     if (cart) customer.cart = cart;
     console.log("req.body", req.body);
     // Allow updating document fields and delete tokens
@@ -2298,8 +2335,20 @@ const checkCustomerExistance = async (req, res) => {
 
 const updateFcmToken = async (req, res) => {
   try {
+    console.log('[AUDIT] Backend updateFcmToken req.params.id:', req.params.id, 'req.user._id:', req.user._id);
+    if (String(req.params.id) !== String(req.user._id)) {
+      console.log('[AUDIT] Backend updateFcmToken Forbidden');
+      return res.status(403).send({ message: "Forbidden" });
+    }
+
     const { fcmToken } = req.body;
-    await Customer.findByIdAndUpdate(req.params.id, { $set: { fcmToken } });
+    console.log('[AUDIT] Backend updateFcmToken received fcmToken:', !!fcmToken);
+    if (!fcmToken || !String(fcmToken).trim()) {
+      return res.status(400).send({ message: "fcmToken is required." });
+    }
+
+    const updateResult = await Customer.findByIdAndUpdate(req.params.id, { $set: { fcmToken: String(fcmToken).trim() } });
+    console.log('[AUDIT] Backend updateFcmToken Mongo update result:', !!updateResult);
     res.status(200).send({
       message: "FCM Token updated successfully!",
     });

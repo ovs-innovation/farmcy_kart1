@@ -286,16 +286,9 @@ const Setting = require("../models/Setting");
 const { sendEmail } = require("../lib/email-sender/sender");
 const { sendSMS } = require("../lib/sms-sender/sender");
 const { orderStatusUpdateBody } = require("../lib/email-sender/templates/order-to-customer/status-update");
+const { resolveCustomerContact } = require("../lib/customer-contact");
+const { notifyOrderStatusInbox } = require("../lib/customer-inbox-notifications");
 
-const PLACEHOLDER_EMAIL_DOMAIN = "phone.farmacykart.com";
-const isPlaceholderEmail = (email) =>
-  !!email && String(email).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
-const getRealEmail = (email) => {
-  if (!email) return "";
-  const normalized = String(email).trim().toLowerCase();
-  if (!normalized || isPlaceholderEmail(normalized)) return "";
-  return normalized;
-};
 const getEmailLogoUrl = async () => {
   try {
     const storeCustomizationSetting = await Setting.findOne(
@@ -375,7 +368,9 @@ const updateOrder = async (req, res) => {
           const contactEmail = globalSetting?.setting?.email || "support@farmacykart.com";
           const logo = await getEmailLogoUrl();
 
-          const customerEmail = getRealEmail(updatedOrder.user_info?.email);
+          const customerEmail = (
+            await resolveCustomerContact(updatedOrder, updatedOrder.user_info || {})
+          ).email;
           const phone = updatedOrder.user_info?.contact;
           const dashUrl = `${process.env.STORE_URL}/user/dashboard`;
 
@@ -407,6 +402,12 @@ const updateOrder = async (req, res) => {
               status,
             });
           }
+
+          await notifyOrderStatusInbox(
+            updatedOrder,
+            status,
+            message || `Your order status is now ${status}.`
+          );
 
           await Order.updateOne(
             { _id: updatedOrder._id },
@@ -484,7 +485,6 @@ const updateOrder = async (req, res) => {
             await pendingReferral.save();
 
             // 4. Update Referrer's Total Earnings
-            const Customer = require("../models/Customer");
             await Customer.findByIdAndUpdate(pendingReferral.referrer, {
               $inc: { totalReferralEarnings: pendingReferral.rewardAmount || 100 },
             });

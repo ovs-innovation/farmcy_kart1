@@ -6,12 +6,14 @@ const {
   getUserReturnRequests,
   getReturnRequestById,
   getReturnEligibility,
+  getReturnReasons,
   getAllReturnRequests,
   updateReturnRequestStatus,
 } = require("../controller/returnRequestController");
 
 // Customer Routes
 router.post("/", isAuth, createReturnRequest);
+router.get("/reasons", isAuth, getReturnReasons);
 router.get("/eligibility/:orderId", isAuth, getReturnEligibility);
 router.get("/", isAuth, getUserReturnRequests);
 router.get("/:id", isAuth, getReturnRequestById);

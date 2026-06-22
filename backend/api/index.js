@@ -17,7 +17,6 @@ const brandRoutes = require("../routes/brandRoutes");
 const couponRoutes = require("../routes/couponRoutes");
 const returnRequestRoutes = require("../routes/returnRequestRoutes");
 const referralRoutes = require("../routes/referralRoutes");
-
 const attributeRoutes = require("../routes/attributeRoutes");
 const settingRoutes = require("../routes/settingRoutes");
 const currencyRoutes = require("../routes/currencyRoutes");
@@ -36,6 +35,31 @@ const customerNotificationRoutes = require("../routes/customerNotificationRoutes
 const webhookRoutes = require("../routes/webhookRoutes");
 
 const { isAuth, isAdmin } = require("../config/auth");
+
+
+const isMongoNetworkError = (reason) => {
+  const msg = reason?.message || String(reason || "");
+  return (
+    reason?.name === "MongoNetworkError" ||
+    reason?.name === "AggregateError" ||
+    msg.includes("MongoNetworkError") ||
+    msg.includes("ETIMEDOUT") ||
+    msg.includes("ECONNREFUSED") ||
+    msg.includes("connection timed out")
+  );
+};
+
+process.on("unhandledRejection", (reason) => {
+  if (isMongoNetworkError(reason)) {
+    console.error(
+      "⚠️ MongoDB network error (non-fatal):",
+      reason?.message || reason
+    );
+    return;
+  }
+
+  console.error("Unhandled promise rejection:", reason);
+});
 // const {
 //   getGlobalSetting,
 //   getStoreCustomizationSetting,
@@ -112,8 +136,8 @@ app.use("/api/category", categoryRoutes);
 app.use("/api/coupon", couponRoutes);
 app.use("/api/tax", taxRoutes);
 app.use("/api/customer", customerRoutes);
-app.use("/api/order", customerOrderRoutes);
 app.use("/api/order/customer", customerOrderRoutes);
+app.use("/api/order", orderRoutes);
 app.use("/api/attributes", attributeRoutes);
 app.use("/api/setting", settingRoutes);
 app.use("/api/currency", currencyRoutes);
@@ -130,7 +154,6 @@ app.use("/api/refund", refundRoutes);
 app.use("/api/push-notification", pushNotificationRoutes);
 app.use("/api/customer-notifications", customerNotificationRoutes);
 app.use("/api/webhooks", webhookRoutes);
-
 app.use("/api/return-request", returnRequestRoutes);
 app.use("/api/referral", referralRoutes);
 //if you not use admin dashboard then these two route will not needed.

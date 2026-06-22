@@ -7,6 +7,7 @@ const MailChecker = require("mailchecker");
 const mongoose = require("mongoose");
 
 const Order = require("../models/Order");
+const Customer = require("../models/Customer");
 const Product = require("../models/Product");
 const Setting = require("../models/Setting");
 const Brand = require("../models/Brand");
@@ -17,23 +18,30 @@ const {
   handleProductQuantity,
   checkStock,
 } = require("../lib/stock-controller/others");
-const { 
+const {
   customerInvoiceEmailBody,
-  orderConfirmationBody 
+  orderConfirmationBody
 } = require("../lib/email-sender/templates/order-to-customer");
 const { newOrderAdminEmailBody } = require("../lib/email-sender/templates/order-to-admin/new-order");
 const { sendSMS } = require("../lib/sms-sender/sender");
 const { populateCartTaxFields } = require("../utils/cartTaxUtils");
+const OrderEmailService = require("../services/OrderEmailService");
+const {
+  assertCustomerProfileForOrder,
+  applyCustomerProfileToUserInfo,
+  isFakeName,
+} = require("../lib/customer-profile-validation");
+const { verifyRazorpayPaymentSignature } = require("../lib/razorpay-verification");
+const { notifyOrderPlaced } = require("../lib/customer-inbox-notifications");
+const { createAdminOrderNotification } = require("../lib/admin-order-notifications");
 
-const PLACEHOLDER_EMAIL_DOMAIN = "phone.farmacykart.com";
-const isPlaceholderEmail = (email) =>
-  !!email && String(email).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
-const getRealEmail = (email) => {
-  if (!email) return "";
-  const normalized = String(email).trim().toLowerCase();
-  if (!normalized || isPlaceholderEmail(normalized)) return "";
-  return normalized;
-};
+const { notifyCustomerInbox } = require("../lib/customer-inbox-notifications");
+const { resolveCustomerContact } = require("../lib/customer-contact");
+const {
+  buildCompanyInfo,
+  enrichOrderForInvoice,
+  buildInvoiceEmailOption,
+} = require("../lib/order-invoice-utils");
 
 const getEmailLogoUrl = async () => {
   try {
@@ -46,7 +54,7 @@ const getEmailLogoUrl = async () => {
       storeCustomizationSetting?.setting?.seo?.favicon ||
       "";
     if (adminLogo && String(adminLogo).trim()) return String(adminLogo).trim();
-  } catch (_) {}
+  } catch (_) { }
 
   if (process.env.STORE_LOGO_URL) return process.env.STORE_LOGO_URL;
   const base = (process.env.STORE_URL || "https://farmacykart.com").replace(/\/$/, "");
@@ -60,43 +68,32 @@ const sendOrderNotifications = async (order) => {
     const contactEmail = globalSetting?.setting?.email || "support@farmacykart.com";
     const currency = order.company_info?.currency || "₹";
     const logo = await getEmailLogoUrl();
-    const customerEmail = getRealEmail(order.user_info?.email);
+
+    // Always use customer profile email from DB — never checkout payload or placeholders
+    const contact = await resolveCustomerContact(order, order.user_info || {});
+    const customerEmail = contact.email;
+    order.user_info = order.user_info || {};
+    if (customerEmail) {
+      order.user_info.email = customerEmail;
+    }
+    if (contact.name && !isFakeName(contact.name)) {
+      order.user_info.name = contact.name;
+    }
+    if (contact.phone && !order.user_info.contact) {
+      order.user_info.contact = contact.phone;
+    }
 
     // 1) Customer confirmation: Email if real email else SMS
     if (customerEmail && !order.confirmationEmailSent) {
-      const emailOption = {
-        name: order.user_info.name,
-        invoice: order.invoice,
-        total: order.total,
-        currency: currency,
-        date: new Date(order.createdAt).toLocaleDateString(),
-        paymentStatus: order.paymentMethod === "Cash On Delivery" ? "Pending" : "Confirmed",
-        status: order.status || "Pending",
-        trackingUrl: `${process.env.STORE_URL}/user/dashboard`,
-        contact_email: contactEmail,
-        shop_name: shopName,
-        logo,
-      };
-
-      const emailBody = {
-        to: customerEmail,
-        replyTo: contactEmail,
-        subject: `Farmacykart – Order #${order.invoice} confirmed`,
-        html: orderConfirmationBody(emailOption),
-        emailType: "order-confirmation",
-      };
-
-      try {
-        await sendEmail(emailBody);
+      const emailSent = await OrderEmailService.sendOrderConfirmation(order);
+      if (emailSent) {
         order.confirmationEmailSent = true;
-      } catch (err) {
-        console.error("Order confirmation email failed:", err.message);
       }
     }
 
     if (!customerEmail && !order.confirmationSmsSent && order.user_info.contact) {
       const smsMessage = `Hi ${order.user_info.name}, your order #${order.invoice} of ${currency}${order.total} has been placed successfully at ${shopName}. Track here: ${process.env.STORE_URL}/user/dashboard`;
-      
+
       const variables = {
         name: order.user_info.name,
         orderid: order.invoice,
@@ -109,24 +106,19 @@ const sendOrderNotifications = async (order) => {
       }
     }
 
-    // 2) Customer invoice: Email PDF if real email
+    // 2) Customer invoice: Email PDF if real email (failure must not block order)
     if (customerEmail && !order.invoiceEmailSent) {
       try {
-        const pdf = await handleCreateInvoice(order, `${order.invoice}.pdf`);
-        const option = {
-          name: order.user_info.name,
-          invoice: order.invoice,
-          total: order.total,
-          currency,
-          date: new Date(order.createdAt).toLocaleDateString(),
-          paymentStatus:
-            order.paymentMethod === "Cash On Delivery" ? "Pending" : "Confirmed",
-          status: order.status || "Order Placed",
-          trackingUrl: `${process.env.STORE_URL}/user/dashboard`,
-          contact_email: contactEmail,
-          shop_name: shopName,
-          logo,
-        };
+        const companyInfo = await buildCompanyInfo(logo);
+        const invoiceOrder = enrichOrderForInvoice(order, companyInfo);
+        const pdf = await handleCreateInvoice(invoiceOrder, `${order.invoice}.pdf`);
+        const option = buildInvoiceEmailOption(
+          invoiceOrder,
+          companyInfo,
+          shopName,
+          contactEmail,
+          logo
+        );
 
         await sendEmail({
           to: customerEmail,
@@ -146,6 +138,21 @@ const sendOrderNotifications = async (order) => {
       } catch (err) {
         console.error("Invoice email failed:", err.message);
       }
+    }
+
+    // 4) In-app notification: order placed
+    if (order.user) {
+      await createAdminOrderNotification(order);
+      await notifyOrderPlaced(order);
+      notifyCustomerInbox(order.user, {
+        title: "Order Placed",
+        description: `Your order #${order.invoice} has been placed successfully.`,
+        notificationType: "order_placed",
+        clickAction: `/order/${order._id}`,
+        campaignId: order._id,
+      }).catch((err) => {
+        console.error("[inbox] order placed notification failed:", err.message);
+      });
     }
 
     // 3) Company/admin notification email for every order
@@ -187,14 +194,14 @@ const sendOrderNotifications = async (order) => {
       }];
     }
 
-    await Order.updateOne({ _id: order._id }, { 
-      $set: { 
+    await Order.updateOne({ _id: order._id }, {
+      $set: {
         confirmationEmailSent: order.confirmationEmailSent,
         confirmationSmsSent: order.confirmationSmsSent,
         invoiceEmailSent: order.invoiceEmailSent,
         adminNewOrderEmailSent: order.adminNewOrderEmailSent,
         trackingHistory: order.trackingHistory
-      } 
+      }
     });
 
   } catch (error) {
@@ -211,7 +218,7 @@ const populateBrandNames = async (order) => {
         .filter(item => item.brand && mongoose.Types.ObjectId.isValid(item.brand))
         .map(item => item.brand)
     )];
-    
+
     // Fetch brand names if there are brand IDs
     if (brandIds.length > 0) {
       const brands = await Brand.find({ _id: { $in: brandIds } }).select('_id name');
@@ -221,7 +228,7 @@ const populateBrandNames = async (order) => {
         const nameObj = brand.name || {};
         brandMap[brand._id.toString()] = nameObj.en || nameObj[Object.keys(nameObj)[0]] || '-';
       });
-      
+
       // Replace brand IDs with brand names in cart items
       order.cart = order.cart.map(item => {
         if (item.brand && brandMap[item.brand]) {
@@ -237,6 +244,11 @@ const populateBrandNames = async (order) => {
 const addOrder = async (req, res) => {
   // console.log("addOrder", req.body);
   try {
+    const profileCheck = await assertCustomerProfileForOrder(req.user?._id);
+    if (!profileCheck.ok) {
+      return res.status(400).send({ message: profileCheck.message });
+    }
+
     const outOfStockItems = await checkStock(req.body.cart);
     if (outOfStockItems.length > 0) {
       return res.status(400).send({
@@ -248,16 +260,21 @@ const addOrder = async (req, res) => {
     // console.log("addOrder: Creating order for user:", req.user ? req.user._id : "Guest (null)");
 
     const cartWithTax = await populateCartTaxFields(req.body.cart || []);
+    const userInfo = applyCustomerProfileToUserInfo(
+      req.body.user_info || {},
+      profileCheck.customer
+    );
 
     const newOrder = new Order({
       ...req.body,
+      user_info: userInfo,
       cart: cartWithTax,
-      user: req.user?._id || null,
+      user: req.user._id,
     });
     const order = await newOrder.save();
     res.status(201).send(order);
     handleProductQuantity(order.cart);
-    
+
     // Send notifications after order is created (non-blocking)
     sendOrderNotifications(order);
   } catch (err) {
@@ -425,6 +442,36 @@ const createOrderByRazorPay = async (req, res) => {
 
 const addRazorpayOrder = async (req, res) => {
   try {
+    if (!req.user?._id) {
+      return res.status(401).send({ message: "Authentication required for online payment orders." });
+    }
+
+    const profileCheck = await assertCustomerProfileForOrder(req.user._id);
+    if (!profileCheck.ok) {
+      return res.status(400).send({ message: profileCheck.message });
+    }
+
+    const paymentInfo = req.body.cardInfo || req.body.paymentData || {};
+    const razorpay_order_id =
+      paymentInfo.razorpay_order_id || paymentInfo.order_id;
+    const razorpay_payment_id =
+      paymentInfo.razorpay_payment_id || paymentInfo.payment_id;
+    const razorpay_signature = paymentInfo.razorpay_signature;
+
+    const storeSetting = await Setting.findOne({ name: "storeSetting" });
+    const razorpaySecret = storeSetting?.setting?.razorpay_secret;
+
+    const verification = verifyRazorpayPaymentSignature(
+      { razorpay_order_id, razorpay_payment_id, razorpay_signature },
+      razorpaySecret
+    );
+
+    if (!verification.valid) {
+      return res.status(400).send({
+        message: verification.message || "Payment verification failed.",
+      });
+    }
+
     const outOfStockItems = await checkStock(req.body.cart);
     if (outOfStockItems.length > 0) {
       return res.status(400).send({
@@ -434,16 +481,27 @@ const addRazorpayOrder = async (req, res) => {
     }
 
     const cartWithTax = await populateCartTaxFields(req.body.cart || []);
+    const userInfo = applyCustomerProfileToUserInfo(
+      req.body.user_info || {},
+      profileCheck.customer
+    );
 
     const newOrder = new Order({
       ...req.body,
+      user_info: userInfo,
       cart: cartWithTax,
-      user: req.user?._id || null,
+      user: req.user._id,
+      cardInfo: {
+        razorpay_order_id,
+        razorpay_payment_id,
+        razorpay_signature,
+      },
+      paymentMethod: req.body.paymentMethod || "Online",
     });
     const order = await newOrder.save();
     res.status(201).send(order);
     handleProductQuantity(order.cart);
-    
+
     // Send notifications after order is created (non-blocking)
     sendOrderNotifications(order);
   } catch (err) {
@@ -562,13 +620,13 @@ const getOrderById = async (req, res) => {
   try {
     // console.log("getOrderById");
     const order = await Order.findById(req.params.id);
-    
+
     // Populate brand names in cart items
     let orderWithBrandNames = await populateBrandNames(order.toObject());
-    
+
     // Populate taxRate and HSN from Product collection
     orderWithBrandNames.cart = await populateCartTaxFields(orderWithBrandNames.cart);
-    
+
     res.send(orderWithBrandNames);
   } catch (err) {
     res.status(500).send({

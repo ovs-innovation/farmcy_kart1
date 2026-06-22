@@ -23,7 +23,8 @@ const resolveCustomerContact = async (orderOrUserId, userInfo = {}) => {
       .lean();
     if (customer) {
       return {
-        email: getRealEmail(customer.email),
+        email:
+          getRealEmail(customer.email) || getRealEmail(userInfo.email),
         name: customer.name || userInfo.name || "Customer",
         phone: customer.phone || userInfo.contact || "",
         customer,

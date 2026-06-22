@@ -26,6 +26,23 @@ const notificationSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+
+    notificationType: {
+      type: String,
+      required: false,
+      default: "general",
+    },
+
+    customerName: {
+      type: String,
+      required: false,
+    },
+
+    orderAmount: {
+
+      type: Number,
+      required: false,
+    },
     image: {
       type: String,
       required: false,

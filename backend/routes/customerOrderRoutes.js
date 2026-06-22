@@ -21,13 +21,17 @@ router.post("/add", isAuthOptional, addOrder);
 router.post("/create-payment-intent", isAuthOptional, createPaymentIntent);
 
 //add razorpay order
-router.post("/add/razorpay", isAuthOptional, addRazorpayOrder);
+router.post("/add/razorpay", isAuth, addRazorpayOrder);
 
 //add a order by razorpay
 router.post("/create/razorpay", isAuthOptional, createOrderByRazorPay);
 
 //get a order by id
 router.get("/:id", isAuth, getOrderById);
+
+//get all order by a user (must be before /:id)
+router.get("/list", isAuth, getOrderCustomer);
+router.get("/my-orders", isAuth, getOrderCustomer);
 
 //get all order by a user
 router.get("/", isAuth, getOrderCustomer);
