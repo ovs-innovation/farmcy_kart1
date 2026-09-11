@@ -106,7 +106,7 @@ const CategoryCard = ({ title, icon, nested, id }) => {
                     {children.children.length > 0 ? (
                       <span className="transition duration-700 ease-in-out inline-flex loading-none items-end text-gray-400">
                         {showSubCategory.id === children._id &&
-                        showSubCategory.show ? (
+                          showSubCategory.show ? (
                           <IoChevronDownOutline />
                         ) : (
                           <IoChevronForwardOutline />
@@ -134,7 +134,7 @@ const CategoryCard = ({ title, icon, nested, id }) => {
 
               {/* sub children category */}
               {showSubCategory.id === children._id &&
-              showSubCategory.show === true ? (
+                showSubCategory.show === true ? (
                 <ul className="pl-6 pb-3">
                   {children.children.map((subChildren) => (
                     <li key={subChildren._id}>

@@ -45,16 +45,16 @@ const ProductDetails = () => {
       // Update the variant in the product's variants array
       const updatedVariants = [...data.variants];
       updatedVariants[index] = updatedVariant;
-      
+
       // Update the product with the new variants
       const updatedProduct = {
         ...data,
         variants: updatedVariants
       };
-      
+
       // Call the API to update the product
       await ProductServices.updateProduct(id, updatedProduct);
-      
+
       // Refresh the data
       window.location.reload();
     } catch (error) {

@@ -3,7 +3,7 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { useContext, useEffect, useState } from "react";
-import { UserContext } from "@context/UserContext"; 
+import { UserContext } from "@context/UserContext";
 import { FiMinus, FiPlus } from "react-icons/fi";
 
 //internal import
@@ -48,8 +48,8 @@ const ProductModal = ({
   }, [minQty, setItem]);
 
   // Get dynamic contact number
-  const contactNumber = 
-    
+  const contactNumber =
+
     storeCustomizationSetting?.footer?.bottom_contact ||
     globalSetting?.contact ||
     "+0044235234";
@@ -192,24 +192,22 @@ const ProductModal = ({
 
       const newItem = {
         ...updatedProduct,
-        id: `${
-          p?.variants.length <= 0
+        id: `${p?.variants.length <= 0
             ? p._id
             : p._id +
-              "-" +
-              variantTitle?.map((att) => selectVariant[att._id]).join("-")
-        }`,
-        title: `${
-          p?.variants.length <= 0
+            "-" +
+            variantTitle?.map((att) => selectVariant[att._id]).join("-")
+          }`,
+        title: `${p?.variants.length <= 0
             ? showingTranslateValue(p.title)
             : showingTranslateValue(p.title) +
-              "-" +
-              variantTitle
-                ?.map((att) =>
-                  att.variants?.find((v) => v._id === selectVariant[att._id])
-                )
-                .map((el) => showingTranslateValue(el?.name))
-        }`,
+            "-" +
+            variantTitle
+              ?.map((att) =>
+                att.variants?.find((v) => v._id === selectVariant[att._id])
+              )
+              .map((el) => showingTranslateValue(el?.name))
+          }`,
         image: img,
         variant: selectVariant || {},
         price: priceToUse,
@@ -279,9 +277,8 @@ const ProductModal = ({
                   </h1>
                 </Link>
                 <div
-                  className={`${
-                    stock <= 0 ? "relative py-1 mb-2" : "relative"
-                  }`}
+                  className={`${stock <= 0 ? "relative py-1 mb-2" : "relative"
+                    }`}
                 >
                   <Stock stock={stock} />
                 </div>
@@ -298,7 +295,7 @@ const ProductModal = ({
                   hideDiscountAndMRP={isWholesaler}
                 />
               </div>
- 
+
 
               {isWholesaler && product?.minQuantity && Number(product.minQuantity) > 0 && (
                 <p className="text-xs text-gray-500 mt-1">Min order quantity: <span className="font-semibold">{product.minQuantity}</span></p>
@@ -397,7 +394,7 @@ const ProductModal = ({
               <div className="flex justify-end mt-2">
                 <p className="text-xs sm:text-sm text-gray-600">
                   Call Us To Order By Mobile Number :{" "}
-                  <a 
+                  <a
                     href={`tel:${contactNumber.replace(/\s+/g, '')}`}
                     className="text-store-500 font-semibold hover:text-store-600 hover:underline"
                   >

@@ -9,6 +9,11 @@ import { IoChevronBack, IoChevronForward, IoSparkles } from "react-icons/io5";
 import "swiper/css";
 import "swiper/css/navigation";
 import "swiper/css/autoplay";
+import dynamic from "next/dynamic";
+
+const SuggestedProducts = dynamic(() => import("@components/product/SuggestedProducts"), {
+  ssr: false,
+});
 
 //internal import
 import { SidebarContext } from "@context/SidebarContext";
@@ -113,9 +118,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                 <div className="mt-4">
                   {/* Renders personalized suggestions for user/guest */}
                   {/* If you want to move this, just change the position */}
-                  {typeof window !== "undefined" && (
-                    require("@components/product/SuggestedProducts").default()
-                  )}
+                  <SuggestedProducts />
                 </div>
               </div>
             </div>

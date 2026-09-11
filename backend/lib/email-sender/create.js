@@ -78,9 +78,13 @@ const generateHeader = (doc, invoice, logoBuffer) => {
     .text(invoice?.company_info?.vat_number, 120, 85);
 
   if (logoBuffer) {
-    doc.image(logoBuffer, doc.page.width - 90, doc.y - 75, {
-      width: 40,
-    });
+    try {
+      doc.image(logoBuffer, doc.page.width - 90, doc.y - 75, {
+        width: 40,
+      });
+    } catch (logoErr) {
+      console.warn("PDFKit failed to draw logo (e.g. unsupported WebP format):", logoErr.message);
+    }
   }
 
   doc

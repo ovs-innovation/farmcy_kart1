@@ -977,6 +977,10 @@ const Checkout = () => {
                         notifyError("Please agree to Terms & Conditions to place order");
                         return;
                       }
+                      if (!selectedAddress) {
+                        notifyError("Please select or add a delivery address first.");
+                        return;
+                      }
                       // Trigger form submission
                       if (formRef.current) {
                         formRef.current.requestSubmit();

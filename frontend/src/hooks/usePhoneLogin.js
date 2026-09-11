@@ -3,8 +3,7 @@ import CustomerServices from "@services/CustomerServices";
 import useFirebasePhoneOtp from "@hooks/useFirebasePhoneOtp";
 
 /** Firebase SMS = 6 digits (reliable). MSG91 backend = 4 digits. */
-const USE_FIREBASE_SMS =
-  process.env.NEXT_PUBLIC_PHONE_OTP_PROVIDER !== "msg91";
+const USE_FIREBASE_SMS = false;
 
 export const PHONE_OTP_LENGTH = USE_FIREBASE_SMS ? 6 : 4;
 export const EMPTY_OTP = Array(PHONE_OTP_LENGTH).fill("");

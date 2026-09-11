@@ -51,9 +51,8 @@ const StepIndicator = ({ step }) => (
   <div className="mb-5 flex items-center justify-between rounded-xl bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
     <div className="flex items-center gap-2">
       <span
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold ${
-          step === "phone" ? "bg-store-700 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"
-        }`}
+        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold ${step === "phone" ? "bg-store-700 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"
+          }`}
       >
         1
       </span>
@@ -64,9 +63,8 @@ const StepIndicator = ({ step }) => (
     <div className="h-px flex-1 mx-3 bg-slate-200" />
     <div className="flex items-center gap-2">
       <span
-        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold ${
-          step === "otp" ? "bg-store-700 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"
-        }`}
+        className={`flex h-7 w-7 items-center justify-center rounded-full text-xs font-extrabold ${step === "otp" ? "bg-store-700 text-white" : "bg-white text-slate-500 ring-1 ring-slate-200"
+          }`}
       >
         2
       </span>

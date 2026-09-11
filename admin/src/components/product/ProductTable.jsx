@@ -75,9 +75,8 @@ const ProductTable = ({ products, isCheck, setIsCheck }) => {
                 )}
                 <div>
                   <h2
-                    className={`text-sm font-medium ${
-                      product?.title.length > 30 ? "wrap-long-title" : ""
-                    }`}
+                    className={`text-sm font-medium ${product?.title.length > 30 ? "wrap-long-title" : ""
+                      }`}
                   >
                     {showingTranslateValue(product?.title)?.substring(0, 28)}
                   </h2>

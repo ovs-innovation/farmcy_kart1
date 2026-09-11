@@ -22,7 +22,24 @@ const getGlobalSetting = async (req, res) => {
     if (!globalSetting) {
       return res.send({});
     }
-    res.send(globalSetting.setting);
+    const setting = globalSetting.setting || {};
+    setting.default_currency = "₹";
+    setting.company_name = "AQOSU FARMACYKART PRIVATE LIMITED";
+    setting.address = "GF D-90, KH NO-1100, RAJNAGAR COLONY, BEHTA HAJIPUR, LONI BORDER, LONI, GHAZIABAD, UTTAR PRADESH, Landmark: NEAR MUNISH PUBLIC, Pin: 201102";
+    setting.shop_name = "Farmacykart";
+    setting.vat_number = "09AAZCA5886C1ZV";
+    setting.post_code = "201102";
+    setting.contact = "07112255930";
+    setting.email = "info.farmacykart@gmail.com";
+    setting.website = "farmacykart.com";
+    setting.gstin = "09AAZCA5886C1ZV";
+    setting.dl_number = "UP14200002337, UP14210002215";
+    // Build an absolute URL for the logo so both admin and frontend
+    // can display it without needing the file in their own public dirs.
+    const protocol = req.protocol || "http";
+    const host = req.get("host") || "localhost:8092";
+    setting.logo = `${protocol}://${host}/logo/logo.png`;
+    res.send(setting);
   } catch (err) {
     res.status(500).send({
       message: err.message,
@@ -208,7 +225,18 @@ const getStoreCustomizationSetting = async (req, res) => {
       return res.send({});
     }
 
-    res.send(storeCustomizationSetting.setting);
+    const setting = storeCustomizationSetting.setting || {};
+    const protocol = req.protocol || "http";
+    const host = req.get("host") || "localhost:8092";
+    const logoUrl = `${protocol}://${host}/logo/logo.png`;
+    if (setting.navbar) {
+      setting.navbar.logo = logoUrl;
+    }
+    if (setting.footer) {
+      setting.footer.block4_logo = logoUrl;
+    }
+
+    res.send(setting);
   } catch (err) {
     res.status(500).send({ message: err.message });
   }

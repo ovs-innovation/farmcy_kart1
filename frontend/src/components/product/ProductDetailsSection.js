@@ -201,7 +201,7 @@ const ProductDetailsSection = ({ dynamicSections = [], mediaSections = [], selec
                   if (!label && !value) return null;
 
                   return (
-                <div key={`${sectionKey}-row-${idx}`}
+                    <div key={`${sectionKey}-row-${idx}`}
                       className="grid grid-cols-2 sm:grid-cols-3 gap-2 py-3 border-b border-gray-100 last:border-none"
                     >
                       <span className="text-sm text-gray-500 font-medium">

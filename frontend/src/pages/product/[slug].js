@@ -1825,7 +1825,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                           </div>
 
                           {/* Product Description Section */}
-                          {product?.productDescription?.enabled !== false && product?.productDescription?.description && (
+                          {product?.productDescription?.enabled !== false && (product?.productDescription?.description || product?.description) && (
                             <div id="product-description" className="mt-8 border border-gray-200 rounded-lg p-6 bg-white">
                               <div className="flex items-center gap-3 mb-4">
                                 {product.productDescription.icon && (
@@ -1836,7 +1836,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                 </h2>
                               </div>
                               <p className="text-sm text-gray-600 leading-relaxed text-justify">
-                                {product.productDescription.description}
+                                {product.productDescription.description || showingTranslateValue(product?.description)}
                               </p>
                             </div>
                           )}

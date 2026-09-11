@@ -724,8 +724,8 @@ export const storeCustomization = {
     bottom_contact_status: true,
     social_links_status: true,
     shipping_card: {
-      en: "Free Shipping From €500.00",
-      de: "Kostenloser Versand ab 500,00 €",
+      en: "Free Shipping From ₹500.00",
+      de: "Kostenloser Versand ab 500,00 ₹",
     },
     support_card: {
       en: "Support 24/7  At Anytime",
@@ -830,8 +830,8 @@ export const storeCustomization = {
   slug: {
     right_box_status: true,
     card_description_one: {
-      en: "Free shipping applies to all orders over shipping €100",
-      de: "Kostenloser Versand gilt für alle Bestellungen über 100 € Versandkosten",
+      en: "Free shipping applies to all orders over shipping ₹100",
+      de: "Kostenloser Versand gilt für alle Bestellungen über 100 ₹ Versandkosten",
     },
     card_description_two: {
       en: "Home Delivery within 1 Hour",

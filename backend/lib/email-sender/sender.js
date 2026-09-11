@@ -116,12 +116,25 @@ const sendEmail = (body) => {
           reject(
             new Error(
               err.response?.data?.message ||
-                err.message ||
-                "Resend failed to send email"
+              err.message ||
+              "Resend failed to send email"
             )
           );
         });
       return;
+    }
+
+    // Check if SMTP credentials are set
+    const user = process.env.EMAIL_USER;
+    const pass = getEmailPassword();
+    if (!user || !pass) {
+      console.warn("\n==================================================");
+      console.warn("📧 [EMAIL SANDBOX MODE] SMTP credentials missing.");
+      console.warn(`👉 To: ${mail.to}`);
+      console.warn(`👉 Subject: ${mail.subject}`);
+      console.warn(`👉 Message:\n${mail.text || mail.html.replace(/<[^>]*>/g, ' ').replace(/\s+/g, ' ')}`);
+      console.warn("==================================================\n");
+      return resolve({ message: "Email simulated successfully in sandbox mode.", messageId: "sandbox" });
     }
 
     console.warn(
@@ -135,7 +148,7 @@ const sendEmail = (body) => {
           return reject(
             new Error(
               "SMTP authentication failed. Use Resend (RESEND_API_KEY) instead of Gmail. " +
-                err.message
+              err.message
             )
           );
         }

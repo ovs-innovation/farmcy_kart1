@@ -26,15 +26,29 @@ router.post("/add/razorpay", isAuth, addRazorpayOrder);
 //add a order by razorpay
 router.post("/create/razorpay", isAuthOptional, createOrderByRazorPay);
 
-//get a order by id
-router.get("/:id", isAuth, getOrderById);
-
 //get all order by a user (must be before /:id)
 router.get("/list", isAuth, getOrderCustomer);
 router.get("/my-orders", isAuth, getOrderCustomer);
 
-//get all order by a user
-router.get("/", isAuth, getOrderCustomer);
+//get all order by a user (handles both customer list and admin fallback)
+router.get("/", isAuth, (req, res, next) => {
+  const adminRoles = ["Admin", "Super Admin", "Cashier", "Manager", "CEO", "Driver", "Security Guard", "Accountant"];
+  if (req.user && req.user.role && adminRoles.includes(req.user.role)) {
+    const { getAllOrders } = require("../controller/orderController");
+    return getAllOrders(req, res, next);
+  }
+  return getOrderCustomer(req, res, next);
+});
+
+//get a order by id (constrained to 24-character hex MongoDB ObjectId to let admin routes fall through)
+router.get("/:id([0-9a-fA-F]{24})", isAuth, (req, res, next) => {
+  const adminRoles = ["Admin", "Super Admin", "Cashier", "Manager", "CEO", "Driver", "Security Guard", "Accountant"];
+  if (req.user && req.user.role && adminRoles.includes(req.user.role)) {
+    const { getOrderById: getAdminOrderById } = require("../controller/orderController");
+    return getAdminOrderById(req, res, next);
+  }
+  return getOrderById(req, res, next);
+});
 
 //request refund for an order
 router.put("/refund/:id", isAuth, requestRefund);

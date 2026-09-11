@@ -19,8 +19,8 @@ const useLoginSubmit = () => {
     formState: { errors },
   } = useForm({
     defaultValues: {
-      email: "info@ovsinnovation.com",
-      password: "Ovsinnovation@123"
+      email: "admin@gmail.com",
+      password: "admin@123"
     }
   });
 

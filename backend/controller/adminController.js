@@ -52,6 +52,12 @@ const registerAdmin = async (req, res) => {
 const loginAdmin = async (req, res) => {
   try {
     const admin = await Admin.findOne({ email: req.body.email });
+
+
+console.log("Request Body:", req.body);
+console.log("Admin:", admin);
+
+    
     if (admin && bcrypt.compareSync(req.body.password, admin.password)) {
       if (admin?.status === "Inactive") {
         return res.status(403).send({

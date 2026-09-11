@@ -26,6 +26,8 @@ const nextConfig = {
       "i.postimg.cc",
       "img.youtube.com",
       "placehold.co",
+      "localhost",
+      "127.0.0.1",
     ],
   },
 

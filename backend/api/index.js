@@ -1,3 +1,7 @@
+const dns = require("node:dns/promises");
+dns.setServers(["8.8.8.8", "1.1.1.1"])
+
+
 require("../config/env");
 const express = require("express");
 const cors = require("cors");
@@ -136,7 +140,7 @@ app.use("/api/category", categoryRoutes);
 app.use("/api/coupon", couponRoutes);
 app.use("/api/tax", taxRoutes);
 app.use("/api/customer", customerRoutes);
-app.use("/api/order/customer", customerOrderRoutes);
+app.use("/api/order", customerOrderRoutes);
 app.use("/api/order", orderRoutes);
 app.use("/api/attributes", attributeRoutes);
 app.use("/api/setting", settingRoutes);
@@ -168,6 +172,9 @@ app.use((err, req, res, next) => {
 
 // Serve static files from the "public" directory
 app.use("/static", express.static(path.join(__dirname, "../public")));
+
+// Serve logo and other brand assets from the public directory
+app.use("/logo", express.static(path.join(__dirname, "../public/logo")));
 
 // Serve uploaded files (e.g., wholesaler documents)
 app.use('/uploads', express.static(path.join(__dirname, '../uploads')));

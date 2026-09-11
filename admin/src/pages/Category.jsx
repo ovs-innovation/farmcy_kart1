@@ -45,8 +45,8 @@ const Category = () => {
 
   const getLevel1Categories = (categories) => {
     if (!categories || !Array.isArray(categories) || categories.length === 0) return [];
-    const homeRoot = categories.find(cat => 
-      cat.id === "Root" || 
+    const homeRoot = categories.find(cat =>
+      cat.id === "Root" ||
       (cat.name?.en || cat.name?.default || (typeof cat.name === 'string' && cat.name))?.toLowerCase() === "home"
     );
     if (homeRoot && homeRoot.children && homeRoot.children.length > 0) return homeRoot.children;
@@ -90,10 +90,10 @@ const Category = () => {
 
     try {
       const categoryData = {
-        name: { 
+        name: {
           default: name.default || name.en,
           en: name.en || name.default,
-          ar: name.ar 
+          ar: name.ar
         },
         priority,
         icon: image?.length > 0 ? image[0] : "https://res.cloudinary.com/ahossain/image/upload/v1655097002/placeholder_kvepfp.png",
@@ -138,8 +138,8 @@ const Category = () => {
                         type="button"
                         onClick={() => setActiveTab(tab)}
                         className={`px-5 py-2.5 rounded-xl transition-all duration-300 ${activeTab === tab
-                            ? "bg-white dark:bg-gray-700 text-teal-600 dark:text-teal-400 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-gray-100 dark:ring-gray-600"
-                            : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50"
+                          ? "bg-white dark:bg-gray-700 text-teal-600 dark:text-teal-400 shadow-[0_2px_10px_rgba(0,0,0,0.06)] ring-1 ring-gray-100 dark:ring-gray-600"
+                          : "text-gray-500 hover:text-gray-700 dark:hover:text-gray-300 hover:bg-white/50 dark:hover:bg-gray-700/50"
                           }`}
                       >
                         {tab}
@@ -154,8 +154,8 @@ const Category = () => {
                       </label>
                       <Input
                         value={
-                          activeTab === "Default" ? name.default : 
-                          activeTab === "English(EN)" ? name.en : name.ar
+                          activeTab === "Default" ? name.default :
+                            activeTab === "English(EN)" ? name.en : name.ar
                         }
                         onChange={(e) => {
                           const val = e.target.value;
@@ -189,7 +189,7 @@ const Category = () => {
                 {/* Right Side: Image Upload Box */}
                 <div className="md:col-span-4 flex flex-col items-center justify-start bg-gray-50/30 dark:bg-gray-800/30 p-6 rounded-2xl border border-dashed border-gray-200 dark:border-gray-700">
                   <label className="text-[11px] font-extrabold uppercase text-gray-500 dark:text-gray-400 mb-4 tracking-wider text-center w-full flex items-center justify-center gap-2">
-                    Category Images 
+                    Category Images
                     <span className="bg-emerald-50 text-emerald-500 px-2 py-0.5 rounded text-[9px] font-black tracking-widest">(Multiple)</span>
                   </label>
                   <Uploader
@@ -295,11 +295,11 @@ const Category = () => {
         {alert.show && createPortal(
           <div className={`fixed top-12 left-1/2 -translate-x-1/2 z-[9999] max-w-sm w-full px-6 py-4 rounded-2xl shadow-[0_20px_50px_rgba(0,0,0,0.2)] flex items-center gap-4 border backdrop-blur-md animate-in slide-in-from-top-10 duration-500 ${alert.type === 'success' ? 'bg-teal-600/95 border-teal-500 text-white' : 'bg-red-600/95 border-red-500 text-white'}`}>
             <div className="w-10 h-10 rounded-full bg-white/20 flex items-center justify-center shrink-0">
-               {alert.type === 'success' ? <FiCheck size={20} /> : <FiSearch size={20} />}
+              {alert.type === 'success' ? <FiCheck size={20} /> : <FiSearch size={20} />}
             </div>
             <div className="flex-1 text-left">
-               <p className="font-extrabold text-[15px]">{alert.type === 'success' ? 'Success ✓' : 'Action Required'}</p>
-               <p className="text-[13px] opacity-90 font-medium">{alert.message}</p>
+              <p className="font-extrabold text-[15px]">{alert.type === 'success' ? 'Success ✓' : 'Action Required'}</p>
+              <p className="text-[13px] opacity-90 font-medium">{alert.message}</p>
             </div>
           </div>,
           document.body

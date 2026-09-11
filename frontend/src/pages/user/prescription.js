@@ -61,7 +61,7 @@ const Prescription = () => {
     <Dashboard title="Prescription" description="Manage your prescriptions and added products">
       <div className="overflow-hidden rounded-md font-serif">
         <div className="flex flex-col">
-       
+
           <PrescriptionStatus userId={userInfo?._id} />
 
           <h2 className="text-xl font-serif font-semibold my-5">Added Products</h2>
@@ -90,7 +90,7 @@ const Prescription = () => {
                       </div>
                       <div>
                         <h3 className="font-medium text-gray-800">
-                          <Link 
+                          <Link
                             href={`/product/${item.productId.slug}`}
                             className="hover:text-green-600 transition-colors"
                           >
@@ -105,7 +105,7 @@ const Prescription = () => {
                           {isWholesaler && item.productId?.wholePrice && Number(item.productId.wholePrice) > 0
                             ? getNumberTwo(Number(item.productId.wholePrice))
                             : getNumberTwo(item.productId.prices?.price || 0)}
-                           
+
                         </p>
                       </div>
                     </div>

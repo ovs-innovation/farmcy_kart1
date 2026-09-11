@@ -11,7 +11,7 @@ const CheckoutCard = ({ item }) => {
 
   const { globalSetting } = useGetSetting();
 
-  const currency = globalSetting?.default_currency || "$";
+  const currency = globalSetting?.default_currency || "₹";
 
   return (
     <div

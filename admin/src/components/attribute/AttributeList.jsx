@@ -27,7 +27,7 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
   const getVariantDetails = (attributeId, variantId) => {
     const attribute = variantTitle?.find(attr => attr._id === attributeId);
     if (!attribute) return null;
-    
+
     const variant = attribute.variants?.find(v => v._id === variantId);
     return variant;
   };
@@ -35,8 +35,8 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
   // Check if this is a color attribute
   const isColorAttribute = (attributeId) => {
     const attribute = variantTitle?.find(attr => attr._id === attributeId);
-    return attribute?.title?.en?.toLowerCase() === "color" || 
-           attribute?.name?.en?.toLowerCase() === "color";
+    return attribute?.title?.en?.toLowerCase() === "color" ||
+      attribute?.name?.en?.toLowerCase() === "color";
   };
 
   return (
@@ -78,27 +78,27 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
               <div className="flex flex-col text-sm">
                 {/* Variant Title - Primary Display */}
                 <span className="font-medium text-gray-900 dark:text-gray-100">
-                  {variant.title?.[lang] || 
-                   variantTitle
-                    ?.map((att) => {
-                      const attributeData = att?.variants?.filter(
-                        (val) => val?.name !== "All"
-                      );
+                  {variant.title?.[lang] ||
+                    variantTitle
+                      ?.map((att) => {
+                        const attributeData = att?.variants?.filter(
+                          (val) => val?.name !== "All"
+                        );
 
-                      const attributeName = attributeData?.find(
-                        (v) => v._id === variant[att?._id]
-                      )?.name;
-                      if (attributeName === undefined) {
-                        return attributeName?.en;
-                      } else {
-                        return showingTranslateValue(attributeName);
-                      }
-                    })
-                    ?.filter(Boolean)
-                    .join(" ") || 
-                   `Variant ${i + 1}`}
+                        const attributeName = attributeData?.find(
+                          (v) => v._id === variant[att?._id]
+                        )?.name;
+                        if (attributeName === undefined) {
+                          return attributeName?.en;
+                        } else {
+                          return showingTranslateValue(attributeName);
+                        }
+                      })
+                      ?.filter(Boolean)
+                      .join(" ") ||
+                    `Variant ${i + 1}`}
                 </span>
-                
+
                 {/* Color variants with full hex color circles */}
                 <div className="flex flex-wrap gap-2 mt-2">
                   {variantTitle?.map((att) => {
@@ -115,9 +115,9 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
                         <div className="flex items-center space-x-2 bg-gray-50 rounded-full px-3 py-1 text-xs border border-gray-200 hover:border-gray-300 transition-all duration-200">
                           {/* Full hex color circle for color attributes */}
                           {isColor && variantDetails.hexColor ? (
-                            <div 
+                            <div
                               className="w-4 h-4 rounded-full shadow-md transition-all duration-200 hover:ring-2 hover:ring-gray-300"
-                              style={{ 
+                              style={{
                                 backgroundColor: variantDetails.hexColor,
                                 boxShadow: `0 2px 4px rgba(0,0,0,0.1), inset 0 1px 0 rgba(255,255,255,0.2)`
                               }}
@@ -128,7 +128,7 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
                               {showingTranslateValue(att.name)}:
                             </span>
                           )}
-                          
+
                           <span className="text-gray-700 font-medium">
                             {showingTranslateValue(variantDetails.name)}
                           </span>
@@ -145,7 +145,7 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
                         {isColor && variantDetails.hexColor && (
                           <div className="absolute bottom-full left-1/2 transform -translate-x-1/2 mb-2 px-3 py-2 bg-gray-900 text-white text-xs rounded-lg opacity-0 group-hover:opacity-100 transition-all duration-300 pointer-events-none whitespace-nowrap z-10 shadow-xl">
                             <div className="flex items-center space-x-2">
-                              <div 
+                              <div
                                 className="w-4 h-4 rounded-full border-2 border-white shadow-lg"
                                 style={{ backgroundColor: variantDetails.hexColor }}
                               />
@@ -165,14 +165,14 @@ const AttributeList = ({ variants, variantTitle, lang, onUpdateVariant }) => {
                     );
                   })}
                 </div>
-                
+
                 {/* Slug Display */}
                 {variant.slug && (
                   <span className="text-xs text-gray-600 dark:text-gray-400">
                     Slug: {variant.slug}
                   </span>
                 )}
-                
+
                 {variant.productId && (
                   <span className="text-xs text-gray-500">
                     ({variant.productId})

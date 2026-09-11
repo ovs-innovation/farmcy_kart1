@@ -229,8 +229,8 @@ const useCheckoutSubmit = (storeSetting) => {
           // If profile completion fails, block placing order and show message
           notifyError(
             err?.response?.data?.message ||
-              err?.message ||
-              "Please check your delivery details and try again."
+            err?.message ||
+            "Please check your delivery details and try again."
           );
           setIsCheckoutSubmit(false);
           return;

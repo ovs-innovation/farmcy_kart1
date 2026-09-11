@@ -25,8 +25,8 @@ const TrustedBrandsSection = ({ brands = [] }) => {
             <h2 className="text-2xl md:text-3xl lg:text-3xl font-bold text-gray-900 mt-10 mb-4">
               {storeCustomizationSetting?.home?.brand_title || "Top Brands You Can Trust"}
             </h2>
-           
-          
+
+
           </div>
 
           {/* Right Side - Full-width horizontal marquee */}

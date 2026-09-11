@@ -39,7 +39,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
       
       // Category Deletion
       if (location.pathname === "/categories" || location.pathname.startsWith("/categories/") || category) {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await CategoryServices.deleteManyCategory({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -63,7 +63,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
 
       // Product Deletion
       if (location.pathname === "/products") {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await ProductServices.deleteManyProducts({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -83,7 +83,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
 
       // Coupon Deletion
       if (location.pathname === "/coupons") {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await CouponServices.deleteManyCoupons({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -115,7 +115,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
       if (location.pathname === "/attributes" || location.pathname.startsWith("/attributes/")) {
         // Child Attribute Deletion
         if (location.pathname.includes("/") && location.pathname.split("/").length > 2) {
-          if (ids) {
+          if (ids && ids.length > 0) {
             const res = await AttributeServices.deleteManyChildAttribute({
               id: location.pathname.split("/")[2],
               ids: ids,
@@ -140,7 +140,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
         }
         
         // Parent Attribute Deletion
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await AttributeServices.deleteManyAttribute({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -170,7 +170,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
 
       // Language Deletion
       if (location.pathname === "/languages") {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await LanguageServices.deleteManyLanguage({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -189,7 +189,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
 
       // Currency Deletion
       if (location.pathname === "/currencies") {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await CurrencyServices.deleteManyCurrency({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -208,7 +208,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
 
       // Brand Deletion
       if (location.pathname === "/brands") {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await BrandServices.deleteManyBrands({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");
@@ -227,7 +227,7 @@ const DeleteModal = ({ id, ids, setIsCheck, category, title, useParamId }) => {
 
       // Push Notification Deletion
       if (location.pathname === "/push-notification") {
-        if (ids) {
+        if (ids && ids.length > 0) {
           const res = await PushNotificationServices.deleteManyPushNotifications({ ids: ids });
           setIsUpdate(true);
           showAlert(res.message, "success");

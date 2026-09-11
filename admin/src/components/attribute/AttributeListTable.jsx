@@ -73,7 +73,7 @@ const AttributeListTable = ({
                     {variant.title}
                   </span>
                 ) : null}
-                
+
                 {/* Combination Name / Attributes */}
                 {variantTitle?.length > 0 && (
                   <span className="text-gray-600 dark:text-gray-400 text-xs">

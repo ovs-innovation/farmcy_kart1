@@ -78,7 +78,7 @@ const Invoice = ({ data, printRef, globalSetting, currency }) => {
                   height={40}
                   src={pickBrandLogo(
                     storeCustomizationSetting?.navbar?.logo,
-                    storeCustomizationSetting?.footer?.block4_logo
+                    storeCustomizationSetting?.footer?.block4_logo 
                   )}
                   alt="logo"
                 />

@@ -1,13 +1,14 @@
 /** Farmacykart brand logo on Cloudinary (dse9adftu) */
 export const DEFAULT_BRAND_LOGO =
-  "https://res.cloudinary.com/dse9adftu/image/upload/v1780479335/farmacykart/brand/logo.png";
+  "/logo/logo.png";
 
-const LEGACY_CLOUDS = ["dhqcwkpzp"];
+const LEGACY_CLOUDS = ["dhqcwkpzp", "ahossain"];
 
 export const isUsableImageUrl = (url) => {
   if (!url || typeof url !== "string") return false;
   const t = url.trim();
-  if (!t.startsWith("http")) return false;
+  if (t === "" || t.toLowerCase() === "undefined" || t.toLowerCase() === "null") return false;
+  if (!t.startsWith("http") && !t.startsWith("/")) return false;
   const lower = t.toLowerCase();
   return !LEGACY_CLOUDS.some((c) => lower.includes(`res.cloudinary.com/${c}/`));
 };

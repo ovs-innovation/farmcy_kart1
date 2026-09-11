@@ -1080,9 +1080,9 @@ const getRecommendations = async (req, res) => {
 
     // 5. Fill functionality (if < 10 recommendations found)
     if (recommendations.length < 10) {
-      const limit = 10 - recommendations.length;
+      let limit = 10 - recommendations.length;
       // Exclude already found recommendations and viewed items
-      const excludeIds = [
+      let excludeIds = [
         ...viewedIds,
         ...recommendations.map((p) => p._id),
       ];
@@ -1095,6 +1095,21 @@ const getRecommendations = async (req, res) => {
         .limit(limit);
 
       recommendations.push(...fillers);
+
+      // If we still need more products, relax the rule and allow viewed items
+      if (recommendations.length < 10) {
+        limit = 10 - recommendations.length;
+        const alreadyIncluded = recommendations.map((p) => p._id.toString());
+
+        const viewedFillers = await Product.find({
+          status: "show",
+          _id: { $in: viewedIds, $nin: alreadyIncluded },
+        })
+          .sort({ sales: -1 })
+          .limit(limit);
+
+        recommendations.push(...viewedFillers);
+      }
     }
 
     res.status(200).json(recommendations);

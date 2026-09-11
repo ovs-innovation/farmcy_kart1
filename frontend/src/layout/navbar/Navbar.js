@@ -19,23 +19,20 @@ import CategoryServices from "@services/CategoryServices";
 import SearchSuggestions from "@components/search/SearchSuggestions";
 import LowerCategoryNavbar from "./LowerCategoryNavbar";
 import CustomerNotificationBell from "@components/notification/CustomerNotificationBell";
-import { pickBrandLogo } from "@utils/brandAssets";
+
+// Imported local logo asset
+import logo from "../../../public/logo/logo.png";
 
 const NavbarLogo = () => {
-  const { storeCustomizationSetting, globalSetting } = useGetSetting();
+  const { globalSetting } = useGetSetting();
   const [imgError, setImgError] = useState(false);
   const siteName = globalSetting?.shop_name || "Farmacykart";
-  const logoSrc = pickBrandLogo(
-    storeCustomizationSetting?.navbar?.logo,
-    storeCustomizationSetting?.seo?.favicon,
-    globalSetting?.logo
-  );
 
-  if (imgError || !logoSrc) {
+  if (imgError) {
     return (
       <Link href="/" className="flex items-center gap-2 shrink-0" aria-label={siteName}>
-        <span className="flex h-14 w-14 items-center justify-center rounded-xl bg-store-600 text-white">
-          <FaPrescriptionBottleAlt className="text-xl" />
+        <span className="flex h-10 w-10 sm:h-14 sm:w-14 items-center justify-center rounded-xl bg-store-600 text-white">
+          <FaPrescriptionBottleAlt className="text-lg sm:text-xl" />
         </span>
         <span className="font-extrabold text-store-800 text-base hidden xl:block">{siteName}</span>
       </Link>
@@ -44,11 +41,12 @@ const NavbarLogo = () => {
 
   return (
     <Link href="/" className="block shrink-0" aria-label={siteName}>
-      <img
-        src={logoSrc}
+      <Image
+        src={logo}
         alt={siteName}
         onError={() => setImgError(true)}
-        className="h-14 w-auto max-w-[200px] object-contain object-left sm:h-16 sm:max-w-[220px]"
+        className="h-10 w-auto max-w-[140px] object-contain object-left sm:h-16 sm:max-w-[220px]"
+        priority
       />
     </Link>
   );
@@ -58,9 +56,8 @@ const NavbarLogo = () => {
 const NavbarHomeIcon = ({ besideSearch = false }) => (
   <Link
     href="/"
-    className={`flex h-10 w-10 items-center justify-center rounded-lg text-green-800 hover:text-green-900 hover:bg-green-50 transition-colors shrink-0 ${
-      besideSearch ? "mr-1" : "ml-10 md:ml-14"
-    }`}
+    className={`flex h-10 w-10 items-center justify-center rounded-lg text-green-800 hover:text-green-900 hover:bg-green-50 transition-colors shrink-0 ${besideSearch ? "mr-1" : "ml-4 md:ml-14"
+      }`}
     aria-label="Home"
     title="Home"
   >
@@ -105,17 +102,14 @@ const Navbar = () => {
   const { count: wishlistCount } = useWishlist();
   const userInfo = getUserSession();
 
-  // Initialize from route to avoid "flash" on first paint.
-  const initialShowSearch =
-    router.pathname !== "/" || router.pathname === "/search";
+  const initialShowSearch = router.pathname !== "/" || router.pathname === "/search";
   const [showSearchInNavbar, setShowSearchInNavbar] = useState(initialShowSearch);
   const [searchText, setSearchText] = useState("");
   const [showSuggestions, setShowSuggestions] = useState(false);
   const searchInputRef = useRef(null);
 
   const isHome = router.pathname === "/";
-  const showNavbarSearch =
-    !isHome || showSearchInNavbar || router.pathname === "/search";
+  const showNavbarSearch = !isHome || showSearchInNavbar || router.pathname === "/search";
 
   useEffect(() => {
     if (!isHome) {
@@ -172,18 +166,17 @@ const Navbar = () => {
   return (
     <>
       <CartDrawer />
-      <header className="hidden lg:block bg-white">
+      {/* REMOVED hidden lg:block SO THIS NAVBAR STAYS VISIBLE ON MOBILE */}
+      <header className="w-full bg-white border-b border-gray-100">
         <div className="max-w-screen-2xl mx-auto px-4 sm:px-8">
-          <div
-            className={`flex items-center gap-4 transition-all duration-300 ${
-              showNavbarSearch ? "py-2.5" : "py-2"
-            }`}
-          >
+          <div className={`flex items-center justify-between gap-2 sm:gap-4 transition-all duration-300 ${showNavbarSearch ? "py-2.5" : "py-2"}`}>
+
             <NavbarLogo />
 
             {!showNavbarSearch && isHome && <NavbarHomeIcon />}
 
-            <div className="flex-1 min-w-0 flex items-center justify-center gap-2">
+            {/* Hidden search bar wrapper on small mobile screens to prevent design breaks */}
+            <div className="hidden md:flex flex-1 min-w-0 items-center justify-center gap-2">
               {showNavbarSearch && <NavbarHomeIcon besideSearch />}
 
               {showNavbarSearch ? (
@@ -242,7 +235,7 @@ const Navbar = () => {
               <CustomerNotificationBell />
               <Link
                 href="/wishlist"
-                className="relative p-2 text-gray-600 hover:text-store-600 rounded-lg hover:bg-store-50"
+                className="relative p-1.5 sm:p-2 text-gray-600 hover:text-store-600 rounded-lg hover:bg-store-50"
                 aria-label="Wishlist"
               >
                 <FiHeart className="text-xl" />
@@ -255,7 +248,7 @@ const Navbar = () => {
               <button
                 type="button"
                 onClick={toggleCartDrawer}
-                className="relative p-2 text-gray-600 hover:text-store-600 rounded-lg hover:bg-store-50"
+                className="relative p-1.5 sm:p-2 text-gray-600 hover:text-store-600 rounded-lg hover:bg-store-50"
                 aria-label="Cart"
               >
                 <FiShoppingCart className="text-xl" />
@@ -265,7 +258,7 @@ const Navbar = () => {
                   </span>
                 )}
               </button>
-              <div className="w-px h-8 bg-gray-200 mx-1" />
+              <div className="w-px h-8 bg-gray-200 mx-1 hidden sm:block" />
               {userInfo?.image ? (
                 <Link href="/user/dashboard">
                   <Image
@@ -273,13 +266,13 @@ const Navbar = () => {
                     height={36}
                     src={userInfo.image}
                     alt="Account"
-                    className="rounded-full w-9 h-9 border-2 border-store-100 object-cover"
+                    className="rounded-full w-8 h-8 sm:w-9 sm:h-9 border-2 border-store-100 object-cover"
                   />
                 </Link>
               ) : userInfo?.name ? (
                 <Link
                   href="/user/dashboard"
-                  className="flex h-9 w-9 items-center justify-center rounded-full border-2 border-store-500 text-store-600 font-bold text-sm"
+                  className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border-2 border-store-500 text-store-600 font-bold text-sm"
                 >
                   {userInfo.name[0]}
                 </Link>
@@ -287,7 +280,7 @@ const Navbar = () => {
                 <button
                   type="button"
                   onClick={() => router.push("/auth/login")}
-                  className="text-sm font-bold text-white bg-store-600 hover:bg-store-700 px-5 py-2 rounded-full shadow-sm"
+                  className="text-xs sm:text-sm font-bold text-white bg-store-600 hover:bg-store-700 px-3 py-1.5 sm:px-5 sm:py-2 rounded-full shadow-sm"
                 >
                   Login
                 </button>
@@ -297,11 +290,13 @@ const Navbar = () => {
         </div>
 
         {showNavbarSearch && (
-          <LowerCategoryNavbar
-            variant="row"
-            categories={categories}
-            showingTranslateValue={showingTranslateValue}
-          />
+          <div className="hidden md:block">
+            <LowerCategoryNavbar
+              variant="row"
+              categories={categories}
+              showingTranslateValue={showingTranslateValue}
+            />
+          </div>
         )}
       </header>
       <style jsx global>{`

@@ -32,7 +32,6 @@ const {
   isFakeName,
 } = require("../lib/customer-profile-validation");
 const { verifyRazorpayPaymentSignature } = require("../lib/razorpay-verification");
-const { notifyOrderPlaced } = require("../lib/customer-inbox-notifications");
 const { createAdminOrderNotification } = require("../lib/admin-order-notifications");
 
 const { notifyCustomerInbox } = require("../lib/customer-inbox-notifications");
@@ -143,7 +142,6 @@ const sendOrderNotifications = async (order) => {
     // 4) In-app notification: order placed
     if (order.user) {
       await createAdminOrderNotification(order);
-      await notifyOrderPlaced(order);
       notifyCustomerInbox(order.user, {
         title: "Order Placed",
         description: `Your order #${order.invoice} has been placed successfully.`,

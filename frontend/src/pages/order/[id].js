@@ -73,7 +73,16 @@ const Order = ({ params }) => {
 
   const { data, error, isLoading } = useQuery({
     queryKey: ["order", orderId],
-    queryFn: async () => await OrderServices.getOrderById(orderId),
+    queryFn: async () => {
+      const userInfo = Cookies.get("userInfo");
+      if (userInfo) {
+        const parsedUser = JSON.parse(userInfo);
+        if (parsedUser?.token) {
+          setToken(parsedUser.token);
+        }
+      }
+      return await OrderServices.getOrderById(orderId);
+    },
     enabled: !!orderId,
   });
 
