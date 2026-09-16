@@ -23,8 +23,8 @@ const uploadPrescription = async (req, res) => {
       // Only accept files that have already been uploaded (have a url)
       if (fileData.url) {
         // Validate file type
-        const type = ["image", "pdf"].includes(fileData.fileType) 
-          ? fileData.fileType 
+        const type = ["image", "pdf"].includes(fileData.fileType)
+          ? fileData.fileType
           : "image";
 
         uploadedFiles.push({
@@ -39,7 +39,8 @@ const uploadPrescription = async (req, res) => {
     if (uploadedFiles.length === 0) {
       return res.status(400).json({
         message: "No valid files provided",
-      });}
+      });
+    }
 
     // Create prescription record
     const prescription = new Prescription({
@@ -185,7 +186,7 @@ const updatePrescriptionStatus = async (req, res) => {
         const customer = await Customer.findById(prescription.user._id);
         if (customer) {
           let cart = customer.cart || [];
-          
+
           // Prevent duplicate medicines in the same request by grouping by productId
           // Enforce minimum quantity per product server-side to avoid client-side bypass
           const medicineMap = new Map();
@@ -256,9 +257,8 @@ const updatePrescriptionStatus = async (req, res) => {
       try {
         await sendEmail({
           to: prescription.user.email,
-          subject: `Farmacykart – Prescription ${
-            prescription.status === "processed" ? "approved" : "update"
-          }`,
+          subject: `Farmacykart – Prescription ${prescription.status === "processed" ? "approved" : "update"
+            }`,
           html: emailBody,
         });
         res.status(200).json({

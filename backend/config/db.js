@@ -1,5 +1,13 @@
 require("./env");
 const mongoose = require("mongoose");
+const dns = require("dns");
+
+// Configure Node to use Google/Cloudflare DNS for reliable MongoDB Atlas SRV record resolution
+try {
+  dns.setServers(["8.8.8.8", "1.1.1.1"]);
+} catch (dnsErr) {
+  console.warn("Could not set custom DNS servers:", dnsErr.message);
+}
 
 const connectOptions = {
   useNewUrlParser: true,
@@ -31,7 +39,7 @@ const connectDB = async () => {
     if (!process.env.MONGO_URI) {
       throw new Error("MONGO_URI is not defined in environment variables. Please set MONGO_URI in your .env file.");
     }
-    
+
     // Cleanup URI (remove any trailing spaces or hidden characters)
     const mongoUri = process.env.MONGO_URI.trim();
 
@@ -42,20 +50,20 @@ const connectDB = async () => {
     //   useCreateIndex: true,
     // });
 
-await mongoose.connect(mongoUri, connectOptions);
+    await mongoose.connect(mongoUri, connectOptions);
 
     console.log("✅ MongoDB Connected Successfully!");
   } catch (err) {
     console.error("❌ MongoDB connection failed!");
     console.error("Error Message:", err.message);
-    
+
     // if (err.message.includes("MongooseServerSelectionError") || err.message.includes("Could not connect to any servers")) {
     //   console.warn("\n💡 TIP: This usually means your IP address is not whitelisted in MongoDB Atlas.");
     //   console.warn("Please go to MongoDB Atlas -> Security -> Network Access and add your current IP.\n");
     // } else if (err.message.includes("ENOTFOUND")) {
     //   console.warn("\n💡 TIP: DNS resolution failed. Check your internet connection or DNS settings.\n");
     // }
-    
+
     logConnectionTips(err);
 
     throw err;
@@ -82,7 +90,7 @@ if (process.env.MONGO_URI) {
     mongo_connection.on("error", (err) => {
       console.error("⚠️ Secondary MongoDB connection error:", err.message);
       if (err.message.includes("Could not connect")) {
-         console.warn("Verify your IP whitelist in MongoDB Atlas.");
+        console.warn("Verify your IP whitelist in MongoDB Atlas.");
       }
     });
 

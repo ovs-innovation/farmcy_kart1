@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import dynamic from "next/dynamic";
 import { useState } from "react";
+import { useRouter } from "next/router";
 import useTranslation from "next-translate/useTranslation";
 import { IoArrowForward } from "react-icons/io5";
 import {
@@ -40,6 +41,7 @@ import NewsletterServices from "@services/NewsletterServices";
 import { notifySuccess, notifyError } from "@utils/toast";
 
 const Footer = () => {
+  const router = useRouter();
   const { t } = useTranslation();
   const userInfo = getUserSession();
 
@@ -63,17 +65,57 @@ const Footer = () => {
     }));
   };
 
+  const handleAnchorClick = (e, href) => {
+    if (href && href.startsWith("/#")) {
+      const targetId = href.replace("/#", "");
+      if (router.pathname === "/") {
+        e.preventDefault();
+        const element = document.getElementById(targetId);
+        if (element) {
+          element.scrollIntoView({ behavior: "smooth" });
+        }
+      }
+    }
+  };
+
+  const getCategoryLink = (linkProp, defaultLink, titleData) => {
+    const titleText = (typeof titleData === "string" ? titleData : showingTranslateValue(titleData)) || "";
+    if (titleText.toLowerCase().includes("offer") || titleText.toLowerCase().includes("deal")) {
+      return "/#hot-deals";
+    }
+    if (linkProp && (linkProp.includes("hot-deals") || linkProp.toLowerCase().includes("offer") || linkProp.toLowerCase().includes("deal"))) {
+      return "/#hot-deals";
+    }
+    if (!linkProp || linkProp === "undefined" || linkProp === "null" || linkProp === "#") {
+      if (defaultLink && (defaultLink.toLowerCase().includes("offer") || defaultLink.toLowerCase().includes("deal"))) {
+        return "/#hot-deals";
+      }
+      return defaultLink;
+    }
+    if (linkProp.includes("fish-meat") || linkProp.includes("breakfast") || linkProp.includes("medicines")) return "/search?sort=newest";
+    if (linkProp.includes("drinks") || linkProp.includes("soft-drink") || linkProp.includes("medical-devices")) return "/search?sort=newest";
+    if (!linkProp.includes("sort=") && !linkProp.startsWith("/#")) {
+      return linkProp.includes("?") ? `${linkProp}&sort=newest` : `${linkProp}?sort=newest`;
+    }
+    return linkProp;
+  };
+
   // SafeLink: render a Next <Link> only when href is provided, otherwise render a span
   // This prevents Next Link prop-type errors when CMS settings don't include a URL
-  const SafeLink = ({ href, children, ...props }) => {
+  const SafeLink = ({ href, children, onClick, ...props }) => {
     if (!href) {
       // remove props that are only valid on anchor elements
       const { target, rel, ...safeProps } = props;
       return <span {...safeProps}>{children}</span>;
     }
 
+    const handleClick = (e) => {
+      if (onClick) onClick(e);
+      handleAnchorClick(e, href);
+    };
+
     return (
-      <Link href={href} {...props}>
+      <Link href={href} onClick={handleClick} {...props}>
         {children}
       </Link>
     );
@@ -208,21 +250,19 @@ const Footer = () => {
                   />
                 </h3>
                 <FiChevronDown
-                  className={`w-5 h-5 text-gray-600 md:hidden transition-transform duration-300 ${
-                    openSections.block1 ? "rotate-180" : ""
-                  }`}
+                  className={`w-5 h-5 text-gray-600 md:hidden transition-transform duration-300 ${openSections.block1 ? "rotate-180" : ""
+                    }`}
                 />
               </button>
               <ul
-                className={`text-sm flex flex-col space-y-2 overflow-hidden transition-all duration-300 ${
-                  openSections.block1
-                    ? "max-h-[500px] opacity-100"
-                    : "max-h-0 opacity-0"
-                } md:max-h-none md:opacity-100 md:mb-2`}
+                className={`text-sm flex flex-col space-y-2 overflow-hidden transition-all duration-300 ${openSections.block1
+                  ? "max-h-[500px] opacity-100"
+                  : "max-h-0 opacity-0"
+                  } md:max-h-none md:opacity-100 md:mb-2`}
               >
                 <li className="group">
                   <SafeLink
-                    href={storeCustomizationSetting?.footer?.block1_sub_link1}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link1, "/about-us", storeCustomizationSetting?.footer?.block1_sub_title1)}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -238,7 +278,7 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <SafeLink
-                    href={storeCustomizationSetting?.footer?.block1_sub_link2}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link2, "/contact-us", storeCustomizationSetting?.footer?.block1_sub_title2)}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -254,7 +294,7 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <SafeLink
-                    href={storeCustomizationSetting?.footer?.block1_sub_link3}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link3, "#", storeCustomizationSetting?.footer?.block1_sub_title3)}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -273,7 +313,7 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <SafeLink
-                    href={storeCustomizationSetting?.footer?.block1_sub_link4}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link4, "#", storeCustomizationSetting?.footer?.block1_sub_title4)}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     {/* <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" /> */}
@@ -306,21 +346,20 @@ const Footer = () => {
                   />
                 </h3>
                 <FiChevronDown
-                  className={`w-5 h-5 text-gray-600 md:hidden transition-transform duration-300 ${
-                    openSections.block2 ? "rotate-180" : ""
-                  }`}
+                  className={`w-5 h-5 text-gray-600 md:hidden transition-transform duration-300 ${openSections.block2 ? "rotate-180" : ""
+                    }`}
                 />
               </button>
               <ul
-                className={`text-sm lg:text-15px flex flex-col space-y-2 overflow-hidden transition-all duration-300 ${
-                  openSections.block2
-                    ? "max-h-[500px] opacity-100"
-                    : "max-h-0 opacity-0"
-                } md:max-h-none md:opacity-100 md:mb-2`}
+                className={`text-sm lg:text-15px flex flex-col space-y-2 overflow-hidden transition-all duration-300 ${openSections.block2
+                  ? "max-h-[500px] opacity-100"
+                  : "max-h-0 opacity-0"
+                  } md:max-h-none md:opacity-100 md:mb-2`}
               >
                 <li className="group">
                   <Link
-                    href={`${storeCustomizationSetting?.footer?.block2_sub_link1}`}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link1, "/search?sort=newest", storeCustomizationSetting?.footer?.block2_sub_title1 || "All Medicines")}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link1, "/search?sort=newest", storeCustomizationSetting?.footer?.block2_sub_title1 || "All Medicines"))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiFileText className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -329,7 +368,7 @@ const Footer = () => {
                       height={16}
                       loading={loading}
                       data={
-                        storeCustomizationSetting?.footer?.block2_sub_title1
+                        storeCustomizationSetting?.footer?.block2_sub_title1 || "All Medicines"
                       }
                     />
                   </Link>
@@ -337,7 +376,8 @@ const Footer = () => {
 
                 <li className="group">
                   <Link
-                    href={`${storeCustomizationSetting?.footer?.block2_sub_link2}`}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link2, "/search?sort=newest", storeCustomizationSetting?.footer?.block2_sub_title2 || "Medical Devices")}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link2, "/search?sort=newest", storeCustomizationSetting?.footer?.block2_sub_title2 || "Medical Devices"))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiShield className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -346,14 +386,15 @@ const Footer = () => {
                       height={16}
                       loading={loading}
                       data={
-                        storeCustomizationSetting?.footer?.block2_sub_title2
+                        storeCustomizationSetting?.footer?.block2_sub_title2 || "Medical Devices"
                       }
                     />
                   </Link>
                 </li>
                 <li className="group">
                   <Link
-                    href={`${storeCustomizationSetting?.footer?.block2_sub_link3}`}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link3, "/search?category=personal-care&sort=newest", storeCustomizationSetting?.footer?.block2_sub_title3 || "Offers & Deals")}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link3, "/search?category=personal-care&sort=newest", storeCustomizationSetting?.footer?.block2_sub_title3 || "Offers & Deals"))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiRefreshCw className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -362,14 +403,15 @@ const Footer = () => {
                       height={16}
                       loading={loading}
                       data={
-                        storeCustomizationSetting?.footer?.block2_sub_title3
+                        storeCustomizationSetting?.footer?.block2_sub_title3 || "Personal Care"
                       }
                     />
                   </Link>
                 </li>
                 <li className="group">
                   <Link
-                    href={`${storeCustomizationSetting?.footer?.block2_sub_link4}`}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link4, "/search?category=vitamins-supplements&sort=newest", storeCustomizationSetting?.footer?.block2_sub_title4 || "Vitamins & Supplements")}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block2_sub_link4, "/search?category=vitamins-supplements&sort=newest", storeCustomizationSetting?.footer?.block2_sub_title4 || "Vitamins & Supplements"))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiTruck className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -378,7 +420,7 @@ const Footer = () => {
                       height={16}
                       loading={loading}
                       data={
-                        storeCustomizationSetting?.footer?.block2_sub_title4
+                        storeCustomizationSetting?.footer?.block2_sub_title4 || "Vitamins & Supplements"
                       }
                     />
                   </Link>
@@ -411,21 +453,20 @@ const Footer = () => {
                   />
                 </h3>
                 <FiChevronDown
-                  className={`w-5 h-5 text-gray-600 md:hidden transition-transform duration-300 ${
-                    openSections.block3 ? "rotate-180" : ""
-                  }`}
+                  className={`w-5 h-5 text-gray-600 md:hidden transition-transform duration-300 ${openSections.block3 ? "rotate-180" : ""
+                    }`}
                 />
               </button>
               <ul
-                className={`text-sm lg:text-15px flex flex-col space-y-2 overflow-hidden transition-all duration-300 ${
-                  openSections.block3
-                    ? "max-h-[500px] opacity-100"
-                    : "max-h-0 opacity-0"
-                } md:max-h-none md:opacity-100 md:mb-2`}
+                className={`text-sm lg:text-15px flex flex-col space-y-2 overflow-hidden transition-all duration-300 ${openSections.block3
+                  ? "max-h-[500px] opacity-100"
+                  : "max-h-0 opacity-0"
+                  } md:max-h-none md:opacity-100 md:mb-2`}
               >
                 <li className="group">
                   <Link
-                    href={storeCustomizationSetting?.footer?.block3_sub_link1}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link1, "/user/dashboard", storeCustomizationSetting?.footer?.block3_sub_title1)}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link1, "/user/dashboard", storeCustomizationSetting?.footer?.block3_sub_title1))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiSettings className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -441,7 +482,8 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <Link
-                    href={storeCustomizationSetting?.footer?.block3_sub_link2}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link2, "/user/my-orders", storeCustomizationSetting?.footer?.block3_sub_title2)}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link2, "/user/my-orders", storeCustomizationSetting?.footer?.block3_sub_title2))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiPackage className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -457,7 +499,8 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <Link
-                    href={storeCustomizationSetting?.footer?.block3_sub_link3}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link3, "/user/dashboard", storeCustomizationSetting?.footer?.block3_sub_title3)}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link3, "/user/dashboard", storeCustomizationSetting?.footer?.block3_sub_title3))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiShoppingBag className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -473,7 +516,8 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <Link
-                    href={storeCustomizationSetting?.footer?.block3_sub_link4}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link4, "/user/update-profile", storeCustomizationSetting?.footer?.block3_sub_title4)}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link4, "/user/update-profile", storeCustomizationSetting?.footer?.block3_sub_title4))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiUser className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
@@ -556,10 +600,10 @@ const Footer = () => {
                   storeCustomizationSetting?.footer?.social_instagram ||
                   storeCustomizationSetting?.footer?.social_linkedin ||
                   storeCustomizationSetting?.footer?.social_whatsapp) && (
-                  <h3 className="text-base font-bold mb-2 text-gray-800">
-                    Social
-                  </h3>
-                )}
+                    <h3 className="text-base font-bold mb-2 text-gray-800">
+                      Social
+                    </h3>
+                  )}
                 <ul className="text-sm flex flex-wrap gap-3">
                   {storeCustomizationSetting?.footer?.social_facebook && (
                     <li className="group">
@@ -656,53 +700,53 @@ const Footer = () => {
               storeCustomizationSetting?.home?.daily_need_google_link ||
               storeCustomizationSetting?.home?.button1_img ||
               storeCustomizationSetting?.home?.button2_img) && (
-              <div>
-                <h3 className="text-base font-bold mb-2 text-gray-800">
-                  Download Our App
-                </h3>
-                <div className="flex gap-3 items-center">
-                  <Link
-                    href={
-                      storeCustomizationSetting?.home?.daily_need_app_link ||
-                      "#"
-                    }
-                  >
-                    <div className="w-[150px] h-[44px]">
-                      <Image
-                        width={150}
-                        height={44}
-                        className="w-full h-full object-fill rounded"
-                        src={
-                          storeCustomizationSetting?.home?.button1_img ||
-                          "/app/app-store.svg"
-                        }
-                        alt="Download on the App Store"
-                      />
-                    </div>
-                  </Link>
+                <div>
+                  <h3 className="text-base font-bold mb-2 text-gray-800">
+                    Download Our App
+                  </h3>
+                  <div className="flex gap-3 items-center">
+                    <Link
+                      href={
+                        storeCustomizationSetting?.home?.daily_need_app_link ||
+                        "#"
+                      }
+                    >
+                      <div className="w-[150px] h-[44px]">
+                        <Image
+                          width={150}
+                          height={44}
+                          className="w-full h-full object-fill rounded"
+                          src={
+                            storeCustomizationSetting?.home?.button1_img ||
+                            "/app/app-store.svg"
+                          }
+                          alt="Download on the App Store"
+                        />
+                      </div>
+                    </Link>
 
-                  <Link
-                    href={
-                      storeCustomizationSetting?.home?.daily_need_google_link ||
-                      "#"
-                    }
-                  >
-                    <div className="w-[150px] h-[44px]">
-                      <Image
-                        width={150}
-                        height={44}
-                        className="w-full h-full object-fill rounded"
-                        src={
-                          storeCustomizationSetting?.home?.button2_img ||
-                          "/app/play-store.svg"
-                        }
-                        alt="Get it on Google Play"
-                      />
-                    </div>
-                  </Link>
+                    <Link
+                      href={
+                        storeCustomizationSetting?.home?.daily_need_google_link ||
+                        "#"
+                      }
+                    >
+                      <div className="w-[150px] h-[44px]">
+                        <Image
+                          width={150}
+                          height={44}
+                          className="w-full h-full object-fill rounded"
+                          src={
+                            storeCustomizationSetting?.home?.button2_img ||
+                            "/app/play-store.svg"
+                          }
+                          alt="Get it on Google Play"
+                        />
+                      </div>
+                    </Link>
+                  </div>
                 </div>
-              </div>
-            )}
+              )}
             {storeCustomizationSetting?.footer?.payment_method_status && (
               <div>
                 <h3 className="text-base font-bold mb-2 text-gray-800">

@@ -651,12 +651,18 @@ const useCheckoutSubmit = (storeSetting) => {
     // console.log("handle default shipping", value);
     setUseExistingAddress(value);
     if (value) {
+
+
       const address = data;
-      const nameParts = address?.name?.split(" "); // Split the name into parts
-      const firstName = nameParts[0]; // First name is the first element
+
+      const nameParts = address?.name?.trim()?.split(/\s+/) || [];  //Split the name into parts
+
+      const firstName = nameParts[0] || ""; // First name is the first element
+
       const lastName =
-        nameParts?.length > 1 ? nameParts[nameParts?.length - 1] : ""; // Last name is the last element, if it exists
-      // console.log("address", address.name.split(" "), "value", value);
+        nameParts.length > 1
+          ? nameParts[nameParts.length - 1]
+          : ""; // Last name is the last element, if it exists
 
       setValue("firstName", firstName);
       setValue("lastName", lastName);

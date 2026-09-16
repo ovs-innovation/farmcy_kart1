@@ -71,15 +71,23 @@ const PrescriptionUploadModal = ({ modalOpen, setModalOpen }) => {
           formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
           formData.append("folder", "prescriptions");
 
-          // Use auto/upload to support both images and PDFs
-          const cloudinaryUrl = process.env.NEXT_PUBLIC_CLOUDINARY_URL.replace("/image/upload", "/auto/upload");
+          // Use valid Cloudinary upload endpoint (image/upload or raw/upload for PDFs)
+          const rawEnvUrl = process.env.NEXT_PUBLIC_CLOUDINARY_URL || "https://api.cloudinary.com/v1_1/gzpiju8x/image/upload";
+          const cleanEnvUrl = rawEnvUrl.includes("http") ? rawEnvUrl.substring(rawEnvUrl.indexOf("http")) : rawEnvUrl;
 
-          const res = await axios.post(cloudinaryUrl, formData, {
-            onUploadProgress: (progressEvent) => {
-              // Progress tracking can be added here if needed
-            },
-          });
-          
+          let res;
+          try {
+            res = await axios.post(cleanEnvUrl, formData);
+          } catch (uploadErr) {
+            // If image/upload fails for PDF, try raw/upload endpoint
+            if (file.type === "application/pdf" && cleanEnvUrl.includes("/image/upload")) {
+              const rawUrl = cleanEnvUrl.replace("/image/upload", "/raw/upload");
+              res = await axios.post(rawUrl, formData);
+            } else {
+              throw uploadErr;
+            }
+          }
+
           const fileType = getFileType(file);
           const uploadedFile = {
             url: res.data.secure_url,
@@ -110,9 +118,12 @@ const PrescriptionUploadModal = ({ modalOpen, setModalOpen }) => {
       notifySuccess(`${filesToUpload.length} file(s) uploaded successfully!`);
     } catch (error) {
       console.error("Error uploading prescription:", error);
-      notifyError(
-        error?.response?.data?.message || "Failed to upload prescription"
-      );
+      const errorMessage =
+        error?.response?.data?.error?.message ||
+        error?.response?.data?.message ||
+        error?.message ||
+        "Failed to upload prescription";
+      notifyError(errorMessage);
     } finally {
       setUploading(false);
     }
@@ -209,11 +220,10 @@ const PrescriptionUploadModal = ({ modalOpen, setModalOpen }) => {
         {/* Upload Area */}
         <div
           {...getRootProps()}
-          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${
-            isDragActive
+          className={`border-2 border-dashed rounded-lg p-8 text-center cursor-pointer transition-colors ${isDragActive
               ? "border-store-500 bg-store-50"
               : "border-gray-300 hover:border-store-400"
-          } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
+            } ${uploading ? "opacity-50 pointer-events-none" : ""}`}
         >
           <input {...getInputProps()} />
           <FiUploadCloud className="mx-auto text-4xl text-store-500 mb-4" />
@@ -335,11 +345,10 @@ const PrescriptionUploadModal = ({ modalOpen, setModalOpen }) => {
             type="button"
             onClick={handleSubmit}
             disabled={loading || uploading || uploadedFiles.length === 0}
-            className={`inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-store-600 border border-transparent rounded-md hover:bg-store-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-store-500 ${
-              (loading || uploading || uploadedFiles.length === 0)
+            className={`inline-flex justify-center px-4 py-2 text-sm font-medium text-white bg-store-600 border border-transparent rounded-md hover:bg-store-700 focus:outline-none focus-visible:ring-2 focus-visible:ring-offset-2 focus-visible:ring-store-500 ${(loading || uploading || uploadedFiles.length === 0)
                 ? "opacity-50 cursor-not-allowed"
                 : ""
-            }`}
+              }`}
           >
             {loading ? "Submitting..." : "Submit Prescription"}
           </button>

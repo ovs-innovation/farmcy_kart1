@@ -29,7 +29,7 @@ const PrescriptionDetails = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const isMounted = useRef(false);
   const searchRef = useRef(null);
-  
+
   // Modal & Zoom State
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [selectedFile, setSelectedFile] = useState(null);
@@ -149,8 +149,8 @@ const PrescriptionDetails = () => {
 
     const isWholesalerUser = prescription?.user?.role && prescription.user.role.toString().toLowerCase() === "wholesaler";
 
-    const productImage = Array.isArray(product.image) 
-      ? product.image[0] 
+    const productImage = Array.isArray(product.image)
+      ? product.image[0]
       : (typeof product.image === 'string' ? product.image : '');
 
     const defaultQty = isWholesalerUser ? (product.minQuantity || 1) : 1;
@@ -347,7 +347,7 @@ const PrescriptionDetails = () => {
             {/* Customer Info */}
             {prescription?.user && (
               <div className="mb-4 text-sm">
-                
+
                 <div className="text-gray-600">{prescription.user.name} &middot; {prescription.user.email}</div>
                 <div className="mt-1">
                   <span className="inline-block bg-gray-100 text-gray-800 px-2 py-1 rounded-md text-xs">
@@ -374,8 +374,8 @@ const PrescriptionDetails = () => {
               {showResults && searchResults.length > 0 && (
                 <ul className="absolute z-10 w-full bg-white dark:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-md mt-1 max-h-60 overflow-auto shadow-lg">
                   {searchResults.map((product) => {
-                    const productImage = Array.isArray(product.image) 
-                      ? product.image[0] 
+                    const productImage = Array.isArray(product.image)
+                      ? product.image[0]
                       : (typeof product.image === 'string' ? product.image : '');
                     const productTitle = product.title?.en || product.title || "Unknown Product";
                     const isSelected = medicines.some((m) => m.productId === product._id);
@@ -385,9 +385,9 @@ const PrescriptionDetails = () => {
                         className="p-3 hover:bg-gray-100 dark:hover:bg-gray-600 cursor-pointer flex items-center gap-3 border-b border-gray-100 dark:border-gray-600 last:border-b-0"
                         onClick={() => handleAddMedicine(product)}
                       >
-                        <Input 
-                          type="checkbox" 
-                          checked={isSelected} 
+                        <Input
+                          type="checkbox"
+                          checked={isSelected}
                           readOnly
                           className="mr-2"
                         />
@@ -458,9 +458,9 @@ const PrescriptionDetails = () => {
                     <div className="col-span-2 flex justify-around items-center gap-x-4">
                       <Label className="text-xs">Qty</Label>
                       <div>
-                         {medicine.minQuantity && medicine.minQuantity > 1 && (
-                        <div className="text-xs text-gray-400 mt-1 w-10">Min: {medicine.minQuantity}</div>
-                      )}
+                        {medicine.minQuantity && medicine.minQuantity > 1 && (
+                          <div className="text-xs text-gray-400 mt-1 w-10">Min: {medicine.minQuantity}</div>
+                        )}
                       </div>
                       <div className="flex items-center mt-0.5">
                         <button
@@ -503,7 +503,7 @@ const PrescriptionDetails = () => {
                         </button>
                       </div>
 
-                     
+
                     </div>
 
                   </div>
@@ -536,7 +536,7 @@ const PrescriptionDetails = () => {
 
       {/* Image Zoom Modal */}
       {isModalOpen && selectedFile && (
-        <div 
+        <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/90 transition-opacity duration-300 backdrop-blur-sm"
           onClick={() => setIsModalOpen(false)}
         >
@@ -546,28 +546,28 @@ const PrescriptionDetails = () => {
               {selectedFile.fileName || "Prescription View"}
             </h3>
             <div className="flex items-center gap-3">
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.min(prev + 0.25, 4)); }}
                 className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition"
                 title="Zoom In"
               >
                 <FiZoomIn size={20} />
               </button>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); setZoomLevel(prev => Math.max(prev - 0.25, 0.5)); }}
                 className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition"
                 title="Zoom Out"
               >
                 <FiZoomOut size={20} />
               </button>
-              <button 
+              <button
                 onClick={(e) => { e.stopPropagation(); handleDownload(selectedFile.url, selectedFile.fileName || "prescription"); }}
                 className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition"
                 title="Download"
               >
                 <FiDownload size={20} />
               </button>
-              <button 
+              <button
                 onClick={() => setIsModalOpen(false)}
                 className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition ml-2"
                 title="Close"
@@ -577,7 +577,7 @@ const PrescriptionDetails = () => {
             </div>
           </div>
 
-          <div 
+          <div
             className="w-full h-full flex items-center justify-center overflow-auto p-12 scrollbar-hide"
             onClick={() => setIsModalOpen(false)}
           >
@@ -589,7 +589,7 @@ const PrescriptionDetails = () => {
               onClick={(e) => e.stopPropagation()}
             />
           </div>
-          
+
           {/* Zoom Indicator */}
           <div className="absolute bottom-6 left-1/2 -translate-x-1/2 px-4 py-1.5 bg-gray-800/80 text-white text-sm rounded-full backdrop-blur-md">
             {Math.round(zoomLevel * 100)}%

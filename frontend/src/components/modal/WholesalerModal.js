@@ -86,9 +86,21 @@ const WholesalerModal = ({ modalOpen, setModalOpen }) => {
       formData.append("upload_preset", process.env.NEXT_PUBLIC_CLOUDINARY_UPLOAD_PRESET);
     }
 
-    // Use auto/upload to support images and pdf
-    const cloudinaryUrl = process.env.NEXT_PUBLIC_CLOUDINARY_URL.replace("/image/upload", "/auto/upload");
-    const res = await axios.post(cloudinaryUrl, formData, { headers: { 'Content-Type': 'multipart/form-data' }});
+    // Clean Cloudinary upload URL
+    const rawEnvUrl = process.env.NEXT_PUBLIC_CLOUDINARY_URL || "https://api.cloudinary.com/v1_1/gzpiju8x/image/upload";
+    const cloudinaryUrl = rawEnvUrl.includes("http") ? rawEnvUrl.substring(rawEnvUrl.indexOf("http")) : rawEnvUrl;
+    
+    let res;
+    try {
+      res = await axios.post(cloudinaryUrl, formData, { headers: { 'Content-Type': 'multipart/form-data' }});
+    } catch (uploadErr) {
+      if (file.type === "application/pdf" && cloudinaryUrl.includes("/image/upload")) {
+        const rawUrl = cloudinaryUrl.replace("/image/upload", "/raw/upload");
+        res = await axios.post(rawUrl, formData, { headers: { 'Content-Type': 'multipart/form-data' }});
+      } else {
+        throw uploadErr;
+      }
+    }
     // return both secure_url, public_id and delete token (if present)
     return { url: res.data.secure_url, publicId: res.data.public_id, deleteToken: res.data.delete_token || res.data.deleteToken || null };
   };

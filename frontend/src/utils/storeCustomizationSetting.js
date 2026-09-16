@@ -736,7 +736,7 @@ export const storeCustomization = {
       de: "Sichere Zahlung, absolut sicher",
     },
     offer_card: {
-      en: "Latest Offer Upto 20% Off",
+      en: "Offers & deals",
       de: "Aktuelles Angebot: Bis zu 20 % Rabatt",
     },
     block1_title: {

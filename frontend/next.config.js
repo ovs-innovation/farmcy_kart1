@@ -28,6 +28,9 @@ const nextConfig = {
       "placehold.co",
       "localhost",
       "127.0.0.1",
+      "images.unsplash.com",
+      "onemg.gumlet.io",
+      "i.ibb.co",
     ],
   },
 

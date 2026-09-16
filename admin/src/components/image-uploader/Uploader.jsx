@@ -162,7 +162,10 @@ const Uploader = ({
         }
 
         const uploadPreset = import.meta.env.VITE_APP_CLOUDINARY_UPLOAD_PRESET;
-        const baseUrl = import.meta.env.VITE_APP_CLOUDINARY_URL;
+        const rawBaseUrl = import.meta.env.VITE_APP_CLOUDINARY_URL || "https://api.cloudinary.com/v1_1/gzpiju8x/image/upload";
+        const baseUrl = typeof rawBaseUrl === "string" && rawBaseUrl.includes("http")
+          ? rawBaseUrl.substring(rawBaseUrl.indexOf("http"))
+          : rawBaseUrl;
 
         if (!uploadPreset || !baseUrl) {
           showAlert(
@@ -188,10 +191,7 @@ const Uploader = ({
           formData.append("public_id", public_id);
         }
 
-        const uploadUrl =
-          file?.type === "application/pdf" && typeof baseUrl === "string"
-            ? baseUrl.replace("/image/upload", "/auto/upload")
-            : baseUrl;
+        const uploadUrl = baseUrl;
 
         const finishUpload = (payload) => {
           showAlert("Image Uploaded successfully!", "success");

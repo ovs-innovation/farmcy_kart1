@@ -147,7 +147,7 @@ const NavbarPromo = () => {
 
                     {storeCustomizationSetting?.navbar?.offers_menu_status && (
                       <Link
-                        href="/offer"
+                        href="/#hot-deals"
                         onClick={() => setIsLoading(!isLoading)}
                         className={`relative inline-flex items-center  bg-red-100 font-serif ml-4 py-0 px-2 rounded text-sm font-medium text-red-500 hover:text-store-600`}
                       >

@@ -31,13 +31,23 @@ async function main() {
       unsigned: true,
       folder: "farmacykart",
     });
-    console.log(`Created upload preset: ${PRESET_NAME}`);
+    console.log(`Created unsigned upload preset: ${PRESET_NAME}`);
   } catch (err) {
-    if (err?.error?.message?.includes("already exists")) {
-      console.log(`Preset already exists: ${PRESET_NAME}`);
-      return;
+    const errMsg = err?.error?.message || err?.message || String(err);
+    if (errMsg.includes("already exists") || errMsg.includes("already been taken")) {
+      try {
+        await cloudinary.api.update_upload_preset(PRESET_NAME, {
+          unsigned: true,
+          folder: "farmacykart",
+        });
+        console.log(`Successfully updated existing upload preset to unsigned mode: ${PRESET_NAME}`);
+        return;
+      } catch (updateErr) {
+        console.error("Failed to update preset to unsigned mode:", updateErr?.error?.message || updateErr.message);
+        process.exit(1);
+      }
     }
-    console.error("Failed:", err?.error?.message || err.message);
+    console.error("Failed:", errMsg);
     process.exit(1);
   }
 }

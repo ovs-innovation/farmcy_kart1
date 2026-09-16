@@ -760,29 +760,29 @@
         },
         "block1_sub_link4": "#",
         "block2_title": {
-          "en": "Latest News",
-          "de": "Neueste Nachrichten"
+          "en": "Top Categories",
+          "de": "Top-Kategorien"
         },
         "block2_sub_title1": {
-          "en": "Fish & Meat",
-          "de": "Fisch Fleisch"
+          "en": "All Medicines",
+          "de": "Alle Medikamente"
         },
-        "block2_sub_link1": "/search?category=fish-meat",
+        "block2_sub_link1": "/search?sort=newest",
         "block2_sub_title2": {
-          "en": "Soft Drink",
-          "de": "Erfrischungsgetränk"
+          "en": "Medical Devices",
+          "de": "Medizinische Geräte"
         },
-        "block2_sub_link2": "/search?category=drinks",
+        "block2_sub_link2": "/search?sort=newest",
         "block2_sub_title3": {
-          "en": "Milk & Dairy",
-          "de": "Milch und Milchprodukte"
+          "en": "Personal Care",
+          "de": "Körperpflege"
         },
-        "block2_sub_link3": "/search?category=milk-dairy",
+        "block2_sub_link3": "/search?category=personal-care&sort=newest",
         "block2_sub_title4": {
-          "en": "Beauty & Health",
-          "de": "Schönheit und Gesundheit"
+          "en": "Vitamins & Supplements",
+          "de": "Vitamine & Nahrungsergänzungsmittel"
         },
-        "block2_sub_link4": "/search?category=beauty-health",
+        "block2_sub_link4": "/search?category=vitamins-supplements&sort=newest",
         "block3_title": {
           "en": "My Account",
           "de": "Mein Konto"

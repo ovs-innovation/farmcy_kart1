@@ -26,7 +26,7 @@ const PrescriptionStatus = ({ userId }) => {
 
   // Extract prescriptions array from response
   const prescriptions = data?.prescriptions || [];
-  
+
   // Get the latest prescription (or all recent ones)
   const recentPrescriptions = prescriptions.slice(0, 2); // Show latest 2
   const showStatusCards = true;

@@ -90,16 +90,16 @@ const Uploader = ({
   ));
 
   useEffect(() => {
-    const uploadURL = uploadUrl;
+    const rawUploadURL = uploadUrl || "https://api.cloudinary.com/v1_1/gzpiju8x/image/upload";
+    const cleanUploadURL = typeof rawUploadURL === "string" && rawUploadURL.includes("http")
+      ? rawUploadURL.substring(rawUploadURL.indexOf("http"))
+      : rawUploadURL;
     const uploadPreset = upload_Preset;
     
     if (files && files.length > 0 && !uploading) {
       const file = files[0];
 
-      const resolvedUploadURL =
-        file?.type === "application/pdf" && typeof uploadURL === "string"
-          ? uploadURL.replace("/image/upload", "/auto/upload")
-          : uploadURL;
+      const resolvedUploadURL = cleanUploadURL;
 
       const name = String(file?.name || "file")
         .replaceAll(/\s/g, "")
