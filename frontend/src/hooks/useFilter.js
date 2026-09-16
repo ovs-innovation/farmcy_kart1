@@ -16,7 +16,7 @@ const useFilter = (data, allCategories = []) => {
   const { showingTranslateValue } = useUtilsFunction();
 
   // Get search query from router
-  const searchQuery = router.query?.query || "";
+  const searchQuery = router.query?.query || router.query?.q || "";
   
   // Initialize sortedField from URL when router is ready
   useEffect(() => {

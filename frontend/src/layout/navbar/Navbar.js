@@ -134,10 +134,11 @@ const Navbar = () => {
   }, [isHome, router.asPath]);
 
   useEffect(() => {
-    if (router.pathname === "/search" && router.query.query) {
-      setSearchText(router.query.query);
+    const qParam = router.query.query || router.query.q;
+    if (router.pathname === "/search" && qParam) {
+      setSearchText(qParam);
     }
-  }, [router.pathname, router.query.query]);
+  }, [router.pathname, router.query.query, router.query.q]);
 
   const handleSearchChange = (value) => {
     setSearchText(value);

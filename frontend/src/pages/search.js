@@ -27,7 +27,7 @@ import useWishlist from "@hooks/useWishlist";
 const Search = ({ products, attributes }) => {
   const { t } = useTranslation();
   const router = useRouter();
-  const { query } = router.query;
+  const query = router.query.query || router.query.q;
   const { isLoading, setIsLoading, toggleFilterDrawer } = useContext(SidebarContext);
   const [visibleProduct, setVisibleProduct] = useState(18);
   const [isSortModalOpen, setIsSortModalOpen] = useState(false);
@@ -133,7 +133,7 @@ const Search = ({ products, attributes }) => {
       try {
         const id = router.query._id;
         const categorySlug = router.query.category;
-        const q = router.query.query;
+        const q = router.query.query || router.query.q;
         const brand = router.query.brand;
 
         const response = await ProductServices.getShowingStoreProducts({
@@ -179,13 +179,14 @@ const Search = ({ products, attributes }) => {
       }
       fetchByQuery();
     }
-  }, [router.isReady, router.query._id, router.query.category, router.query.query, router.query.brand, categories]);
+  }, [router.isReady, router.query._id, router.query.category, router.query.query, router.query.q, router.query.brand, categories]);
 
   // Clear search query and URL filters when sidebar filters are applied
   const clearSearchQuery = () => {
     // Check if any filtering params exist in URL that limit the initial data fetch
     if (
       router.query.query || 
+      router.query.q ||
       router.query._id || 
       router.query.category || 
       router.query.brand
@@ -194,6 +195,7 @@ const Search = ({ products, attributes }) => {
       
       // Remove params that restrict the server-side product list
       delete newQuery.query;
+      delete newQuery.q;
       delete newQuery._id;
       delete newQuery.category;
       delete newQuery.brand;
@@ -282,12 +284,13 @@ const Search = ({ products, attributes }) => {
 
   // Sync searchText with URL query parameter
   useEffect(() => {
-    if (router.query.query) {
-      setSearchText(router.query.query);
+    const qParam = router.query.query || router.query.q;
+    if (qParam) {
+      setSearchText(qParam);
     } else {
       setSearchText("");
     }
-  }, [router.query.query]);
+  }, [router.query.query, router.query.q]);
 
 
   const handleSearchChange = (value) => {
@@ -659,12 +662,13 @@ const Search = ({ products, attributes }) => {
 export default Search;
 
 export const getServerSideProps = async (context) => {
-  const { query, _id, brand, category } = context.query;
+  const { query, q, _id, brand, category } = context.query;
+  const searchTerm = query || q || "";
 
   const [dataResult, attributesResult] = await Promise.allSettled([
     ProductServices.getShowingStoreProducts({
       category: _id ? _id : category ? category : "",
-      title: query ? encodeURIComponent(query) : "",
+      title: searchTerm ? encodeURIComponent(searchTerm) : "",
       brand: brand ? brand : "",
     }),
     AttributeServices.getShowingAttributes({}),
