@@ -283,7 +283,14 @@ const PhoneLoginForm = ({ variant = "login" }) => {
           <div className="flex items-start gap-2 rounded-lg bg-slate-50 px-4 py-3 ring-1 ring-slate-100">
             <FiLock className="mt-0.5 h-4 w-4 text-slate-400" />
             <p className="text-[12px] leading-relaxed text-slate-600">
-              By continuing, you agree to our Terms of Use and Privacy Policy.
+              By continuing, you agree to our{" "}
+              <Link href="/terms-and-conditions" className="text-store-600 font-bold hover:underline">
+                Terms of Use
+              </Link>
+              {" "}and{" "}
+              <Link href="/privacy-policy" className="text-store-600 font-bold hover:underline">
+                Privacy Policy
+              </Link>.
             </p>
           </div>
 

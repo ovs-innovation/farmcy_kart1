@@ -14,6 +14,7 @@ import useUtilsFunction from "@hooks/useUtilsFunction";
 import ReviewModal from "@components/reviews/ReviewModal";
 import CMSkeletonTwo from "@components/preloader/CMSkeletonTwo";
 import useCartDB from "@hooks/useCartDB";
+import RecentOrdersPage from "./recent-orders";
 
 /* ─── Status badge ─── */
 const StatusBadge = ({ status }) => {
@@ -60,7 +61,13 @@ const ProductStrip = ({ cart = [] }) => {
 };
 
 /* ─── Main Component ─── */
-const RecentOrder = ({ data, loading, error }) => {
+const RecentOrder = (props) => {
+  // If rendered directly as a Next.js page route without props, delegate to RecentOrdersPage
+  if (!props.data && !props.loading && props.error === undefined) {
+    return <RecentOrdersPage />;
+  }
+
+  const { data, loading, error } = props;
   const router = useRouter();
   const { handleChangePage, currentPage, setCartDrawerOpen } = useContext(SidebarContext);
   const { storeCustomizationSetting } = useGetSetting();
@@ -71,6 +78,7 @@ const RecentOrder = ({ data, loading, error }) => {
 
   const { addItemWithDB, clearCartWithDB } = useCartDB();
   const pageCount = Math.ceil(data?.totalDoc / 10);
+  const displayOrders = data?.orders ? data.orders.slice(0, 5) : [];
 
   /* ─── Re-order handler ─── */
   const handleReorder = async (order) => {
@@ -128,7 +136,7 @@ const RecentOrder = ({ data, loading, error }) => {
 
         {loading ? (
           <CMSkeletonTwo count={10} width={100} error={error} loading={loading} />
-        ) : data?.orders?.length === 0 ? (
+        ) : displayOrders.length === 0 ? (
           <div className="flex flex-col items-center justify-center py-12 text-center">
             <div className="w-14 h-14 bg-store-50 rounded-full flex items-center justify-center mb-4">
               <IoBagHandle className="text-store-400 text-2xl" />
@@ -153,7 +161,7 @@ const RecentOrder = ({ data, loading, error }) => {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-100">
-                  {data?.orders?.map((order) => (
+                  {displayOrders.map((order) => (
                     <tr key={order._id} className="hover:bg-gray-50/60 transition-colors">
                       <td className="px-4 py-3.5 whitespace-nowrap">
                         <span className="font-mono text-xs font-bold text-store-600 bg-store-50 px-2 py-0.5 rounded">
@@ -210,7 +218,7 @@ const RecentOrder = ({ data, loading, error }) => {
 
             {/* ── Mobile Cards ── */}
             <div className="sm:hidden space-y-3">
-              {data?.orders?.map((order) => (
+              {displayOrders.map((order) => (
                 <div key={order._id} className="bg-white border border-gray-100 rounded-xl shadow-sm overflow-hidden">
                   <div className="flex items-center justify-between px-3 py-2.5 bg-gray-50 border-b border-gray-100">
                     <span className="font-mono text-xs font-bold text-store-600">

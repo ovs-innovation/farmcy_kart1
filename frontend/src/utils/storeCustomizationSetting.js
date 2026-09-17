@@ -805,7 +805,7 @@ export const storeCustomization = {
       en: "Recent Orders",
       de: "letzte Bestellungen",
     },
-    block3_sub_link3: "/user/dashboard",
+    block3_sub_link3: "/user/recent-orders",
     block3_sub_title4: {
       en: "Update Profile",
       de: "Profil aktualisieren",

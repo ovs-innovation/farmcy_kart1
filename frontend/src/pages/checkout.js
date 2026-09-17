@@ -1024,11 +1024,11 @@ const Checkout = () => {
                     />
                     <label htmlFor="agreeToTerms" className="text-xs sm:text-sm text-gray-900 font-semibold cursor-pointer leading-relaxed">
                       By placing the order, you agree to our{" "}
-                      <Link href="/terms" className="text-store-700 hover:text-store-800 hover:underline font-bold">
+                      <Link href="/terms-and-conditions" className="text-store-700 hover:text-store-800 hover:underline font-bold">
                         Terms & Conditions
                       </Link>
                       {" "}and{" "}
-                      <Link href="/privacy" className="text-store-700 hover:text-store-800 hover:underline font-bold">
+                      <Link href="/privacy-policy" className="text-store-700 hover:text-store-800 hover:underline font-bold">
                         Privacy Policy
                       </Link>
                     </label>

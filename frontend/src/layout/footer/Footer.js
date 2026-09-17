@@ -294,13 +294,10 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <SafeLink
-                    href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link3, "#", storeCustomizationSetting?.footer?.block1_sub_title3)}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link3, "/careers", storeCustomizationSetting?.footer?.block1_sub_title3)}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
-                    {showingTranslateValue(
-                      storeCustomizationSetting?.footer_block_one_link_three_title,
-                    )}
                     <CMSkeleton
                       count={1}
                       height={16}
@@ -312,11 +309,29 @@ const Footer = () => {
                   </SafeLink>
                 </li>
                 <li className="group">
+                  <Link
+                    href="/privacy-policy"
+                    className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
+                  >
+                    <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
+                    <span>Privacy Policy</span>
+                  </Link>
+                </li>
+                <li className="group">
+                  <Link
+                    href="/terms-and-conditions"
+                    className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
+                  >
+                    <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
+                    <span>Terms & Conditions</span>
+                  </Link>
+                </li>
+                <li className="group">
                   <SafeLink
                     href={getCategoryLink(storeCustomizationSetting?.footer?.block1_sub_link4, "#", storeCustomizationSetting?.footer?.block1_sub_title4)}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
-                    {/* <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" /> */}
+                    <FiChevronRight className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
                     <CMSkeleton
                       count={1}
                       height={16}
@@ -499,8 +514,8 @@ const Footer = () => {
                 </li>
                 <li className="group">
                   <Link
-                    href={getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link3, "/user/dashboard", storeCustomizationSetting?.footer?.block3_sub_title3)}
-                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link3, "/user/dashboard", storeCustomizationSetting?.footer?.block3_sub_title3))}
+                    href={getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link3, "/user/recent-orders", storeCustomizationSetting?.footer?.block3_sub_title3)}
+                    onClick={(e) => handleAnchorClick(e, getCategoryLink(storeCustomizationSetting?.footer?.block3_sub_link3, "/user/recent-orders", storeCustomizationSetting?.footer?.block3_sub_title3))}
                     className="text-gray-600 inline-flex items-center w-full hover:text-store-600 transition-all duration-300"
                   >
                     <FiShoppingBag className="w-4 h-4 mr-2 text-gray-500 group-hover:text-store-600 transition-colors" />
