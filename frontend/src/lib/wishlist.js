@@ -21,14 +21,14 @@ function setWishlistItems(items) {
 
 export function isInWishlist(productId) {
   if (!productId) return false;
-  return getWishlistItems().some((item) => item?._id === productId);
+  return getWishlistItems().some((item) => String(item?._id) === String(productId));
 }
 
 export function addToWishlist(product) {
   if (!product?._id) return { ok: false, reason: "invalid" };
 
   const wishlist = getWishlistItems();
-  const exists = wishlist.some((item) => item?._id === product._id);
+  const exists = wishlist.some((item) => String(item?._id) === String(product._id));
   if (exists) return { ok: false, reason: "exists" };
 
   setWishlistItems([...wishlist, product]);
@@ -39,7 +39,7 @@ export function removeFromWishlist(productId) {
   if (!productId) return { ok: false, reason: "invalid" };
 
   const wishlist = getWishlistItems();
-  const next = wishlist.filter((item) => item?._id !== productId);
+  const next = wishlist.filter((item) => String(item?._id) !== String(productId));
   setWishlistItems(next);
   return { ok: true };
 }

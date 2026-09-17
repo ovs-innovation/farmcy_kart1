@@ -17,6 +17,8 @@ import AttributeServices from "@services/AttributeServices";
 import { notifySuccess, notifyError } from "@utils/toast";
 import PageHeader from "@components/header/PageHeader";
 
+import useWishlist from "@hooks/useWishlist";
+
 const Wishlist = ({ attributes }) => {
   const { t } = useTranslation();
   const router = useRouter();
@@ -25,34 +27,21 @@ const Wishlist = ({ attributes }) => {
   const { showingTranslateValue } = useUtilsFunction();
   const { state } = useContext(UserContext) || {};
   const isWholesaler = state?.userInfo?.role && state.userInfo.role.toString().toLowerCase() === "wholesaler";
-  const [wishlistItems, setWishlistItems] = useState([]);
+
+  const { items: wishlistItems, remove: removeWishlist } = useWishlist();
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    // Load wishlist from localStorage
-    if (typeof window !== "undefined") {
-      const storedWishlist = localStorage.getItem("wishlist");
-      if (storedWishlist) {
-        try {
-          setWishlistItems(JSON.parse(storedWishlist));
-        } catch (error) {
-          console.error("Error parsing wishlist:", error);
-          setWishlistItems([]);
-        }
-      }
-      setLoading(false);
-    }
+    setLoading(false);
   }, []);
 
   const removeFromWishlist = (productId) => {
-    const updatedWishlist = wishlistItems.filter(
-      (item) => item._id !== productId
-    );
-    setWishlistItems(updatedWishlist);
-    if (typeof window !== "undefined") {
-      localStorage.setItem("wishlist", JSON.stringify(updatedWishlist));
+    const result = removeWishlist(productId);
+    if (result?.ok) {
+      notifySuccess("Product removed from wishlist");
+    } else {
+      notifyError("Failed to remove from wishlist");
     }
-    notifySuccess("Product removed from wishlist");
   };
 
   const addToCartFromWishlist = (product) => {
@@ -134,7 +123,7 @@ const Wishlist = ({ attributes }) => {
                   >
                     <FiTrash2 className="w-4 h-4" />
                   </button>
-                   
+
                 </div>
               ))}
             </div>

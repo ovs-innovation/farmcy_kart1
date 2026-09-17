@@ -18,7 +18,7 @@ import useUtilsFunction from "@hooks/useUtilsFunction";
 import ProductModal from "@components/modal/ProductModal";
 import ImageWithFallback from "@components/common/ImageWithFallBack";
 import { handleLogEvent } from "src/lib/analytics";
-import { addToWishlist } from "@lib/wishlist";
+import useWishlist from "@hooks/useWishlist";
 
 const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscount = false, hideWishlistCompare = false }) => {
   const [modalOpen, setModalOpen] = useState(false);
@@ -34,6 +34,9 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
 
   const storeColor = storeCustomizationSetting?.theme?.color || "green";
   const currency = globalSetting?.default_currency || "₹";
+
+  const { items: wishlistItems, add: addWishlist, remove: removeWishlist } = useWishlist();
+  const isFavourited = wishlistItems?.some((item) => String(item?._id) === String(product?._id));
 
 
   const handleAddItem = (p) => {
@@ -65,27 +68,36 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
     addItem(newItem, minQty);
   };
 
-  const handleAddToWishlist = (e) => {
+  const handleToggleWishlist = (e) => {
     e.stopPropagation();
     if (typeof window === "undefined") return;
 
     try {
-      const result = addToWishlist(product);
+      if (isFavourited) {
+        const result = removeWishlist(product._id);
+        if (result?.ok) {
+          notifySuccess("Product removed from wishlist");
+        } else {
+          notifyError("Failed to remove from wishlist");
+        }
+      } else {
+        const result = addWishlist(product);
 
-      if (!result.ok && result.reason === "exists") {
-        notifyError("Product already in wishlist");
-        return;
+        if (!result?.ok && result?.reason === "exists") {
+          notifyError("Product already in wishlist");
+          return;
+        }
+
+        if (!result?.ok) {
+          notifyError("Failed to add to wishlist");
+          return;
+        }
+
+        notifySuccess("Product added to wishlist");
       }
-
-      if (!result.ok) {
-        notifyError("Failed to add to wishlist");
-        return;
-      }
-
-      notifySuccess("Product added to wishlist");
     } catch (error) {
-      console.error("Error adding to wishlist:", error);
-      notifyError("Failed to add to wishlist");
+      console.error("Error updating wishlist:", error);
+      notifyError("Failed to update wishlist");
     }
   };
 
@@ -158,13 +170,17 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
 
           {/* Wishlist and Compare buttons - Bottom Right */}
           {!hideWishlistCompare && (
-            <div className="absolute bottom-2 right-2 z-30 flex flex-col gap-2 lg:opacity-0 lg:group-hover:opacity-100 transition-opacity duration-200">
+            <div className={`absolute bottom-2 right-2 z-30 flex flex-col gap-2 ${isFavourited ? "opacity-100" : "lg:opacity-0 lg:group-hover:opacity-100"} transition-opacity duration-200`}>
               <button
-                onClick={handleAddToWishlist}
-                className={`p-1.5 sm:p-2 bg-white rounded-full shadow-md hover:bg-red-500 hover:text-white transition-colors`}
-                aria-label="Add to wishlist"
+                onClick={handleToggleWishlist}
+                className={`p-1.5 sm:p-2 bg-white rounded-full shadow-md ${
+                  isFavourited
+                    ? "text-red-500 hover:bg-red-50 hover:text-red-600"
+                    : "text-gray-600 hover:bg-red-500 hover:text-white"
+                } transition-colors`}
+                aria-label={isFavourited ? "Remove from wishlist" : "Add to wishlist"}
               >
-                <FiHeart className="w-3 h-3 sm:w-4 sm:h-4" />
+                <FiHeart className={`w-3 h-3 sm:w-4 sm:h-4 ${isFavourited ? "fill-red-500 text-red-500" : ""}`} />
               </button>
               <button
                 onClick={handleAddToCompare}

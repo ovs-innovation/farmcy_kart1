@@ -54,7 +54,7 @@ import WriteReviewForm from "@components/reviews/WriteReviewForm";
 import ReviewServices from "@services/ReviewServices";
 import { notifyError, notifySuccess } from "@utils/toast";
 import { useSession } from "next-auth/react";
-import { addToWishlist } from "@lib/wishlist";
+import useWishlist from "@hooks/useWishlist";
 import { getExpectedDeliveryTime } from "@utils/deliveryTime";
 import CustomerServices from "@services/CustomerServices";
 import { useQuery } from "@tanstack/react-query";
@@ -65,6 +65,9 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
   const router = useRouter();
   const { data: session } = useSession();
   const { state: userState } = useContext(UserContext) || {};
+
+  const { items: wishlistItems, add: addWishlist, remove: removeWishlist } = useWishlist();
+  const isFavourited = wishlistItems?.some((item) => String(item?._id) === String(product?._id));
 
   // Get user info from session, context, or cookies
   const cookieUserInfo = (typeof window !== "undefined") ? (() => {
@@ -92,35 +95,35 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
   // Handle Product View Tracking
   useEffect(() => {
     if (product?._id) {
-       // 1. Backend Tracking (fire and forget)
-       ProductServices.addProductView({ productId: product._id }).catch(err => 
-         console.error("Tracking view failed", err)
-       );
+      // 1. Backend Tracking (fire and forget)
+      ProductServices.addProductView({ productId: product._id }).catch(err =>
+        console.error("Tracking view failed", err)
+      );
 
-       // 2. Guest LocalStorage Tracking
-       if (!session?.user && typeof window !== "undefined") {
-          try {
-             let history = [];
-             const stored = localStorage.getItem("recentlyViewed");
-             if (stored) history = JSON.parse(stored);
-             
-             // Remove if exists (to move to top)
-             history = history.filter(p => p._id !== product._id);
-             
-             // Add current
-             history.unshift({
-               _id: product._id,
-               viewedAt: Date.now()
-             });
-             
-             // Limit to 10
-             if(history.length > 10) history = history.slice(0, 10);
-             
-             localStorage.setItem("recentlyViewed", JSON.stringify(history));
-          } catch(e) {
-             console.error("LS Error", e);
-          }
-       }
+      // 2. Guest LocalStorage Tracking
+      if (!session?.user && typeof window !== "undefined") {
+        try {
+          let history = [];
+          const stored = localStorage.getItem("recentlyViewed");
+          if (stored) history = JSON.parse(stored);
+
+          // Remove if exists (to move to top)
+          history = history.filter(p => p._id !== product._id);
+
+          // Add current
+          history.unshift({
+            _id: product._id,
+            viewedAt: Date.now()
+          });
+
+          // Limit to 10
+          if (history.length > 10) history = history.slice(0, 10);
+
+          localStorage.setItem("recentlyViewed", JSON.stringify(history));
+        } catch (e) {
+          console.error("LS Error", e);
+        }
+      }
     }
   }, [product, session]);
 
@@ -255,25 +258,25 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
   useEffect(() => {
     // Trigger when we have variants and some selection
     if (!product?.variants || product.variants.length === 0) return;
-    
+
     // Check if we have any attribute selection
     const attributeKeys = variantTitle?.map(att => att._id) || [];
     const hasSelection = value || (selectVa && Object.keys(selectVa).length > 0 && attributeKeys.some(key => selectVa[key]));
-    
+
     if (!hasSelection) {
       return;
     }
-    
+
     if (hasSelection) {
       // Merge current selectVa with selectVariant to get complete selection
       const mergedSelection = { ...selectVariant, ...selectVa };
-      
+
       // Filter out non-attribute keys for comparison
       const attributeKeys = variantTitle?.map(att => att._id) || [];
-      
+
       // If we have attribute keys, filter by them; otherwise use all variants
       let result = product?.variants || [];
-      
+
       if (attributeKeys.length > 0) {
         result = product?.variants?.filter((variant) => {
           // Check if variant matches all selected attributes
@@ -315,7 +318,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
 
       // Find the variant that matches all selected attributes
       let result2 = null;
-      
+
       if (Object.keys(newObj).length > 0) {
         result2 = result?.find((v) =>
           Object.keys(newObj).every((k) => newObj[k] === v[k])
@@ -343,7 +346,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
         setSelectVariant(result2);
         setSelectVa(result2);
       }
-      
+
       // Get variant images - prioritize variant images
       let variantImages = [];
       if (Array.isArray(result2?.images) && result2.images.length > 0) {
@@ -351,34 +354,34 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       } else if (result2?.image) {
         variantImages = [result2.image];
       }
-      
+
       // If variant has video, add it to images array
       if (result2?.video && typeof result2.video === "string" && result2.video.trim() !== "") {
         if (!variantImages.includes(result2.video)) {
           variantImages.push(result2.video);
         }
       }
-      
+
       // Set active image to first variant image, or fallback to product image
-      const variantImage = variantImages.length > 0 
+      const variantImage = variantImages.length > 0
         ? variantImages[0]
         : (productImages[0] || "");
       setActiveImage(variantImage);
       setCurrentImages(
         variantImages.length > 0 ? variantImages : productImages
       );
-      
+
       setStock(result2?.quantity);
       const price = getNumber(result2?.price);
       const originalPrice = getNumber(result2?.originalPrice);
-      
+
       // Use actual discount percentage from database (variant discount)
       // Check variant discount first, then fallback to product discount
       const variantDiscount = getNumber(result2?.discount ?? result2?.prices?.discount ?? null);
       const productDiscount = getNumber(product?.prices?.discount ?? 0);
       // Use variant discount if available, otherwise use product discount
       const discount = variantDiscount !== null && variantDiscount !== undefined ? variantDiscount : productDiscount;
-      
+
       console.log("Discount Debug (result2):", {
         result2: result2,
         result2Discount: result2?.discount,
@@ -388,18 +391,18 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
         productPricesDiscount: product?.prices?.discount,
         finalDiscount: discount
       });
-      
+
       setDiscount(discount);
       console.log("Discount state set to:", discount);
       setPrice(price);
       setOriginalPrice(originalPrice);
-      
+
       // Set dynamic title and description - variant first, then product
       const variantTitleText = showingTranslateValue(result2?.title);
       const variantDescText = showingTranslateValue(result2?.description);
       setDynamicTitle(variantTitleText || showingTranslateValue(product?.title));
       setDynamicDescription(variantDescText || showingTranslateValue(product?.description));
-      
+
       // Set variant-specific dynamic and media sections
       // Always set if array exists, even if sections have isVisible: false
       setVariantDynamicSections(
@@ -434,8 +437,8 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
         Array.isArray(pricedVariant?.images) && pricedVariant.images.length > 0
           ? pricedVariant.images
           : pricedVariant?.image
-          ? [pricedVariant.image]
-          : [];
+            ? [pricedVariant.image]
+            : [];
 
       const firstVariantImage =
         firstVariantImageArr[0] || productImages[0] || "";
@@ -453,13 +456,13 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
 
       const price = getNumber(rawVariantPrice);
       const originalPrice = getNumber(rawVariantOriginal);
-      
+
       // Use actual discount percentage from database (variant or product discount)
       const variantDiscount = getNumber(pricedVariant?.discount ?? pricedVariant?.prices?.discount ?? null);
       const productDiscount = getNumber(product?.prices?.discount ?? 0);
       // Use variant discount if available, otherwise use product discount
       const discount = variantDiscount !== null && variantDiscount !== undefined ? variantDiscount : productDiscount;
-      
+
       console.log("Discount Debug (pricedVariant):", {
         pricedVariantDiscount: pricedVariant?.discount,
         pricedVariantPricesDiscount: pricedVariant?.prices?.discount,
@@ -467,7 +470,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
         productDiscount,
         finalDiscount: discount
       });
-      
+
       setDiscount(discount);
       setPrice(price);
       setOriginalPrice(originalPrice);
@@ -507,23 +510,23 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
 
       const price = getNumber(baseRawPrice);
       const originalPrice = getNumber(baseRawOriginal);
-      
+
       // Use actual discount percentage from database (product discount)
       const discount = getNumber(product?.prices?.discount ?? 0);
-      
+
       console.log("Discount Debug (no variant):", {
         productPricesDiscount: product?.prices?.discount,
         finalDiscount: discount
       });
-      
+
       setDiscount(discount);
       setPrice(price);
       setOriginalPrice(originalPrice);
-      
+
       // Set dynamic title and description - use product title/description when no variant
       setDynamicTitle(showingTranslateValue(product?.title));
       setDynamicDescription(showingTranslateValue(product?.description));
-      
+
       // Reset variant-specific sections when no variant
       setVariantDynamicSections(null);
       setVariantMediaSections(null);
@@ -578,7 +581,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
           globalSetting,
           shippingAddressData
         );
-        
+
         console.log("Delivery time result:", deliveryTime);
         setExpectedDeliveryTime(deliveryTime);
       } catch (error) {
@@ -732,16 +735,16 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
   useEffect(() => {
     // Only trigger if we have variants
     if (!product?.variants || product.variants.length === 0) return;
-    
+
     // Get attribute keys
     const attributeKeys = variantTitle?.map(att => att._id) || [];
     if (attributeKeys.length === 0) return;
-    
+
     // Check if selectVa has any attribute selections
     const hasAttributeSelection = selectVa && Object.keys(selectVa).some(key => attributeKeys.includes(key));
-    
+
     if (!hasAttributeSelection) return;
-    
+
     // Find matching variant based on selected attributes
     const matchingVariant = product.variants.find((variant) => {
       return attributeKeys.every((attrKey) => {
@@ -753,13 +756,13 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
     });
 
     // Compare by SKU or by checking if attributes match
-    const isDifferent = !selectVariant || 
+    const isDifferent = !selectVariant ||
       matchingVariant?.sku !== selectVariant?.sku ||
       attributeKeys.some(key => matchingVariant[key] !== selectVariant[key]);
-    
+
     if (matchingVariant && isDifferent) {
       setSelectVariant(matchingVariant);
-      
+
       // Update images immediately - prioritize variant images
       let variantImages = [];
       if (Array.isArray(matchingVariant?.images) && matchingVariant.images.length > 0) {
@@ -767,43 +770,43 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       } else if (matchingVariant?.image) {
         variantImages = [matchingVariant.image];
       }
-      
+
       // If variant has video, add it to images array
       if (matchingVariant?.video && typeof matchingVariant.video === "string" && matchingVariant.video.trim() !== "") {
         if (!variantImages.includes(matchingVariant.video)) {
           variantImages.push(matchingVariant.video);
         }
       }
-      
-      const variantImage = variantImages.length > 0 
+
+      const variantImage = variantImages.length > 0
         ? variantImages[0]
         : (productImages[0] || "");
       setActiveImage(variantImage);
       setCurrentImages(
         variantImages.length > 0 ? variantImages : productImages
       );
-      
+
       // Update price, stock, etc. immediately
       setStock(matchingVariant?.quantity || 0);
       const price = getNumber(matchingVariant?.price);
       const originalPrice = getNumber(matchingVariant?.originalPrice);
-      
+
       // Use actual discount percentage from database (variant discount)
       const variantDiscount = getNumber(matchingVariant?.discount ?? matchingVariant?.prices?.discount ?? null);
       const productDiscount = getNumber(product?.prices?.discount ?? 0);
       // Use variant discount if available, otherwise use product discount
       const discount = variantDiscount !== null && variantDiscount !== undefined ? variantDiscount : productDiscount;
-      
+
       setDiscount(discount);
       setPrice(price);
       setOriginalPrice(originalPrice);
-      
+
       // Update dynamic title and description immediately
       const variantTitleText = showingTranslateValue(matchingVariant?.title);
       const variantDescText = showingTranslateValue(matchingVariant?.description);
       setDynamicTitle(variantTitleText || showingTranslateValue(product?.title));
       setDynamicDescription(variantDescText || showingTranslateValue(product?.description));
-      
+
       // Update variant-specific dynamic and media sections immediately
       // Always set if array exists, even if sections have isVisible: false
       setVariantDynamicSections(
@@ -842,13 +845,13 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
         "additional-information",
         "faq"
       ];
-      
+
       let currentSection = "";
       const isDesktop = window.innerWidth >= 1024;
       // Desktop: Header (~100px) + Tabs (~60px) + Buffer = ~180px
       // Mobile: Header (~64px) + Tabs (~60px) + Buffer = ~140px
       const offset = isDesktop ? 180 : 140;
-      
+
       // Check if product-description section is reached to show sticky bottom bar (mobile only)
       const productDescriptionElement = document.getElementById("product-description");
       if (productDescriptionElement && !isDesktop) {
@@ -859,7 +862,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       } else {
         setShowStickyBottomBar(false);
       }
-      
+
       for (const sectionId of sections) {
         const element = document.getElementById(sectionId);
         if (element) {
@@ -869,7 +872,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
           }
         }
       }
-      
+
       if (currentSection) {
         setActiveTab(currentSection);
       }
@@ -889,9 +892,9 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       const containerWidth = tabContainer.offsetWidth;
       const buttonLeft = activeButton.offsetLeft;
       const buttonWidth = activeButton.offsetWidth;
-      
+
       const scrollLeft = buttonLeft - (containerWidth / 2) + (buttonWidth / 2);
-      
+
       tabContainer.scrollTo({
         left: scrollLeft,
         behavior: 'smooth'
@@ -916,38 +919,36 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
     const currentPrice = (isWholesaler && product?.wholePrice && Number(product.wholePrice) > 0)
       ? Number(product.wholePrice)
       : (price > 0
-          ? price
-          : getNumber(selectVariant?.price ?? product?.prices?.price ?? 0)
-        );
+        ? price
+        : getNumber(selectVariant?.price ?? product?.prices?.price ?? 0)
+      );
 
     const currentOriginalPrice = (isWholesaler && product?.wholePrice && Number(product.wholePrice) > 0)
       ? (product?.prices?.originalPrice ?? product?.prices?.price ?? 0)
       : (originalPrice > 0
-          ? originalPrice
-          : getNumber(selectVariant?.originalPrice ?? product?.prices?.originalPrice ?? currentPrice)
-        );
+        ? originalPrice
+        : getNumber(selectVariant?.originalPrice ?? product?.prices?.originalPrice ?? currentPrice)
+      );
 
     const newItem = {
       ...updatedProduct,
-      id: `${
-        !hasVariants || p.variants.length === 0
-          ? p._id
-          : p._id +
-            "-" +
-            variantTitle?.map((att) => selectVariant[att._id]).join("-")
-      }`,
+      id: `${!hasVariants || p.variants.length === 0
+        ? p._id
+        : p._id +
+        "-" +
+        variantTitle?.map((att) => selectVariant[att._id]).join("-")
+        }`,
 
-      title: `${
-        !hasVariants || p.variants.length === 0
-          ? dynamicTitle || showingTranslateValue(product?.title)
-          : (dynamicTitle || showingTranslateValue(product?.title)) +
-            "-" +
-            variantTitle
-              ?.map((att) =>
-                att.variants?.find((v) => v._id === selectVariant[att._id])
-              )
-              .map((el) => showingTranslateValue(el?.name))
-      }`,
+      title: `${!hasVariants || p.variants.length === 0
+        ? dynamicTitle || showingTranslateValue(product?.title)
+        : (dynamicTitle || showingTranslateValue(product?.title)) +
+        "-" +
+        variantTitle
+          ?.map((att) =>
+            att.variants?.find((v) => v._id === selectVariant[att._id])
+          )
+          .map((el) => showingTranslateValue(el?.name))
+        }`,
       image: activeImage || product.image?.[0] || product.images?.[0],
       variant: selectVariant,
       price: currentPrice,
@@ -958,50 +959,61 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
     handleAddItem(newItem, minQty);
   };
 
-  const handleAddToWishlist = (p) => {
+  const handleToggleWishlist = (p) => {
     if (typeof window === "undefined") return;
-    
+    const targetProduct = p || product;
+    if (!targetProduct?._id) return;
+
     try {
-      const result = addToWishlist(p);
+      if (isFavourited) {
+        const result = removeWishlist(targetProduct._id);
+        if (result?.ok) {
+          notifySuccess("Product removed from wishlist");
+        } else {
+          notifyError("Failed to remove from wishlist");
+        }
+      } else {
+        const result = addWishlist(targetProduct);
 
-      if (!result.ok && result.reason === "exists") {
-        notifyError("Product already in wishlist");
-        return;
+        if (!result?.ok && result?.reason === "exists") {
+          notifyError("Product already in wishlist");
+          return;
+        }
+
+        if (!result?.ok) {
+          notifyError("Failed to add to wishlist");
+          return;
+        }
+
+        notifySuccess("Product added to wishlist");
       }
-
-      if (!result.ok) {
-        notifyError("Failed to add to wishlist");
-        return;
-      }
-
-      notifySuccess("Product added to wishlist");
     } catch (error) {
-      console.error("Error adding to wishlist:", error);
-      notifyError("Failed to add to wishlist");
+      console.error("Error updating wishlist:", error);
+      notifyError("Failed to update wishlist");
     }
   };
 
   const handleAddToCompare = (p) => {
     if (typeof window === "undefined") return;
-    
+
     try {
       const storedCompare = localStorage.getItem("compare");
       let compare = storedCompare ? JSON.parse(storedCompare) : [];
-      
+
       // Check if product already exists in compare
       const exists = compare.some((item) => item._id === p._id);
-      
+
       if (exists) {
         notifyError("Product already in compare list");
         return;
       }
-      
+
       // Limit compare list to 4 products
       if (compare.length >= 4) {
         notifyError("You can compare maximum 4 products");
         return;
       }
-      
+
       // Add product to compare
       compare.push(p);
       localStorage.setItem("compare", JSON.stringify(compare));
@@ -1035,36 +1047,34 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       const currentPrice = (isWholesaler && product?.wholePrice && Number(product.wholePrice) > 0)
         ? Number(product.wholePrice)
         : (price > 0
-            ? price
-            : getNumber(selectVariant?.price ?? product?.prices?.price ?? 0)
-          );
+          ? price
+          : getNumber(selectVariant?.price ?? product?.prices?.price ?? 0)
+        );
       const currentOriginalPrice = (isWholesaler && product?.wholePrice && Number(product.wholePrice) > 0)
         ? (product?.prices?.originalPrice ?? product?.prices?.price ?? 0)
         : (originalPrice > 0
-            ? originalPrice
-            : getNumber(selectVariant?.originalPrice ?? product?.prices?.originalPrice ?? currentPrice)
-          );
+          ? originalPrice
+          : getNumber(selectVariant?.originalPrice ?? product?.prices?.originalPrice ?? currentPrice)
+        );
 
       const minQtyBuy = isWholesaler && product?.minQuantity ? Number(product.minQuantity) : item;
       const newItem = {
         ...updatedProduct,
-        id: `${
-          !hasVariants || (p.variants && p.variants.length <= 1)
-            ? p._id
-            : p._id +
-              variantTitle?.map((att) => selectVariant[att._id]).join("-")
-        }`,
-        title: `${
-          !hasVariants || (p.variants && p.variants.length <= 1)
-            ? dynamicTitle || showingTranslateValue(product?.title)
-            : (dynamicTitle || showingTranslateValue(product?.title)) +
-              "-" +
-              variantTitle
-                ?.map((att) =>
-                  att.variants?.find((v) => v._id === selectVariant[att._id])
-                )
-                .map((el) => showingTranslateValue(el?.name))
-        }`,
+        id: `${!hasVariants || (p.variants && p.variants.length <= 1)
+          ? p._id
+          : p._id +
+          variantTitle?.map((att) => selectVariant[att._id]).join("-")
+          }`,
+        title: `${!hasVariants || (p.variants && p.variants.length <= 1)
+          ? dynamicTitle || showingTranslateValue(product?.title)
+          : (dynamicTitle || showingTranslateValue(product?.title)) +
+          "-" +
+          variantTitle
+            ?.map((att) =>
+              att.variants?.find((v) => v._id === selectVariant[att._id])
+            )
+            .map((el) => showingTranslateValue(el?.name))
+          }`,
         image: activeImage || product.image?.[0],
         variant: selectVariant || {},
         price: currentPrice,
@@ -1171,7 +1181,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       }
       return [];
     }
-    
+
     // Handle old array structure (backward compatibility)
     if (Array.isArray(product?.faqs)) {
       return product.faqs.filter(
@@ -1182,7 +1192,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
           faq?.isVisible !== false
       );
     }
-    
+
     return [];
   }, [product?.faqs]);
 
@@ -1213,9 +1223,9 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
       const rect = element.getBoundingClientRect();
       // Header is approx 80-100px. Tabs are 50-60px. Total ~140-160px. 
       // Using 180px provides a safe buffer so the title is clearly visible.
-      const offset = 180; 
+      const offset = 180;
       const targetPosition = window.pageYOffset + rect.top - offset;
-      
+
       window.scrollTo({
         top: targetPosition,
         behavior: "smooth"
@@ -1256,7 +1266,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                 <div className="flex flex-col lg:flex-row gap-10">
                   <div className="flex-shrink-0 w-full mx-auto md:w-5/12 lg:w-5/12 xl:w-5/12">
                     <div className="mt-1 lg:mt-2 lg:sticky lg:top-28 lg:space-y-4">
-                      {!isWholesaler && <Discount slug product={product} discount={discount} />} 
+                      {!isWholesaler && <Discount slug product={product} discount={discount} />}
 
                       {/* Flipkart-style Product Image Gallery with buttons inside */}
                       <ProductImageGallery
@@ -1268,12 +1278,17 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                           <div className="absolute left-4 top-4 z-20 flex flex-col items-center gap-2">
                             <button
                               type="button"
-                              onClick={() => handleAddToWishlist(product)}
-                              className="flex items-center gap-1 text-xs sm:text-sm font-semibold text-gray-600 hover:text-red-600 border border-gray-200 hover:border-red-500 rounded-full px-3 py-1 bg-white shadow-sm transition-colors"
-                              aria-label="Add to wishlist"
+                              onClick={() => handleToggleWishlist(product)}
+                              className={`flex items-center gap-1 text-xs sm:text-sm font-semibold ${isFavourited
+                                ? "text-red-600 border-red-500 bg-red-50"
+                                : "text-gray-600 hover:text-red-600 border-gray-200 hover:border-red-500 bg-white"
+                                } border rounded-full px-3 py-1 shadow-sm transition-colors`}
+                              aria-label={isFavourited ? "Remove from wishlist" : "Add to wishlist"}
                             >
-                              <FiHeart className="w-4 h-4" />
-                              <span className="hidden sm:inline">Wishlist</span>
+                              <FiHeart className={`w-4 h-4 ${isFavourited ? "fill-red-500 text-red-500" : ""}`} />
+                              <span className="hidden sm:inline">
+                                {isFavourited ? "In Wishlist" : "Wishlist"}
+                              </span>
                             </button>
                             <button
                               type="button"
@@ -1325,56 +1340,56 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                         </p>
 
 
-{/* Trust Features Section */}
-<div className="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-4 sm:p-6 shadow-sm">
-  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
+                        {/* Trust Features Section */}
+                        <div className="mt-8 bg-blue-50 border border-blue-100 rounded-2xl p-4 sm:p-6 shadow-sm">
+                          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 sm:gap-6 text-center">
 
-    {/* Feature 1 */}
-    <div className="flex items-center justify-center gap-3 sm:border-r border-blue-200 pr-4">
-      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-blue-100">
-        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10z"/>
-        </svg>
-      </div>
-      <p className="text-sm sm:text-base font-medium text-gray-700 text-left">
-        100% genuine <br /> medicines
-      </p>
-    </div>
+                            {/* Feature 1 */}
+                            <div className="flex items-center justify-center gap-3 sm:border-r border-blue-200 pr-4">
+                              <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-blue-100">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 22s8-4 8-10V6l-8-4-8 4v6c0 6 8 10 8 10z" />
+                                </svg>
+                              </div>
+                              <p className="text-sm sm:text-base font-medium text-gray-700 text-left">
+                                100% genuine <br /> medicines
+                              </p>
+                            </div>
 
-    {/* Feature 2 */}
-    <div className="flex items-center justify-center gap-3 sm:border-r border-blue-200 pr-4">
-      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-blue-100">
-        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <rect x="2" y="7" width="20" height="14" rx="2"/>
-          <path d="M16 3v4M8 3v4"/>
-        </svg>
-      </div>
-      <p className="text-sm sm:text-base font-medium text-gray-700 text-left">
-        Safe & secure <br /> payments
-      </p>
-    </div>
+                            {/* Feature 2 */}
+                            <div className="flex items-center justify-center gap-3 sm:border-r border-blue-200 pr-4">
+                              <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-blue-100">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <rect x="2" y="7" width="20" height="14" rx="2" />
+                                  <path d="M16 3v4M8 3v4" />
+                                </svg>
+                              </div>
+                              <p className="text-sm sm:text-base font-medium text-gray-700 text-left">
+                                Safe & secure <br /> payments
+                              </p>
+                            </div>
 
-    {/* Feature 3 */}
-    <div className="flex items-center justify-center gap-3">
-      <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-blue-100">
-        <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
-          <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v6h6M20 20v-6h-6"/>
-          <path strokeLinecap="round" strokeLinejoin="round" d="M20 10A8 8 0 104 14"/>
-        </svg>
-      </div>
-      <p className="text-sm sm:text-base font-medium text-gray-700 text-left">
-        15 days Easy <br /> returns
-      </p>
-    </div>
+                            {/* Feature 3 */}
+                            <div className="flex items-center justify-center gap-3">
+                              <div className="w-12 h-12 flex items-center justify-center rounded-full bg-white shadow-sm border border-blue-100">
+                                <svg className="w-6 h-6 text-blue-500" fill="none" stroke="currentColor" strokeWidth="2" viewBox="0 0 24 24">
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M4 4v6h6M20 20v-6h-6" />
+                                  <path strokeLinecap="round" strokeLinejoin="round" d="M20 10A8 8 0 104 14" />
+                                </svg>
+                              </div>
+                              <p className="text-sm sm:text-base font-medium text-gray-700 text-left">
+                                15 days Easy <br /> returns
+                              </p>
+                            </div>
 
-  </div>
-</div>
+                          </div>
+                        </div>
 
                       </div>
                     </div>
                   </div>
 
-                  
+
 
                   <div className="w-full lg:w-7/12 relative min-w-0">
                     <div className="flex flex-col md:flex-row lg:flex-row xl:flex-row">
@@ -1419,11 +1434,11 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                           <div className="text-sm leading-6 text-gray-500 md:leading-7">
                             {(() => {
                               const descriptionText = dynamicDescription || showingTranslateValue(product?.description);
-                              const displayText = isReadMore 
+                              const displayText = isReadMore
                                 ? (descriptionText?.slice(0, 230) || "")
                                 : (descriptionText || "");
                               const textLength = descriptionText?.length || 0;
-                              
+
                               return (
                                 <>
                                   {displayText}
@@ -1449,7 +1464,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                             <Stock stock={stock} />
                           </div>
 
-                         
+
                         </div>
                         <div className="bg-gray-50/50 rounded-2xl p-6 mb-8 border border-gray-100">
                           <Price
@@ -1458,11 +1473,11 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                               (isWholesaler && product?.wholePrice && Number(product.wholePrice) > 0)
                                 ? Number(product.wholePrice)
                                 : (price > 0
-                                    ? price
-                                    : getNumber(
-                                        (product?.variants?.[0]?.price ??
-                                          product?.prices?.price) || 0
-                                      ))
+                                  ? price
+                                  : getNumber(
+                                    (product?.variants?.[0]?.price ??
+                                      product?.prices?.price) || 0
+                                  ))
                             }
                             product={product}
                             currency={currency}
@@ -1471,16 +1486,16 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                               originalPrice > 0
                                 ? originalPrice
                                 : getNumber(
-                                    (product?.variants?.[0]?.originalPrice ??
-                                      product?.prices?.originalPrice ??
-                                      product?.variants?.[0]?.price ??
-                                      product?.prices?.price) || 0
-                                  )
+                                  (product?.variants?.[0]?.originalPrice ??
+                                    product?.prices?.originalPrice ??
+                                    product?.variants?.[0]?.price ??
+                                    product?.prices?.price) || 0
+                                )
                             }
                             hideDiscountAndMRP={isWholesaler}
                             showTaxLabel
                           />
-                          
+
                           {discount > 0 && !isWholesaler && (
                             <div className="mt-2 inline-flex items-center px-3 py-1 rounded-full bg-green-100 text-green-700 text-xs font-bold ring-1 ring-green-200">
                               <span className="animate-bounce-short mr-1">🔥</span> Special Discount Applied
@@ -1529,7 +1544,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                           ))}
                         </div>
                         <div>
-                          
+
                           <div className="flex flex-col mt-4">
                             <span className="font-serif font-semibold py-1 text-sm d-block">
                               <span className="text-gray-800">
@@ -1550,12 +1565,12 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                             <Tags product={product} />
                           </div>
 
-                        
+
 
                           <div className="mt-8">
                             <p className="text-xs sm:text-sm text-gray-700 font-medium">
                               Call Us To Order By Mobile Number :{" "}
-                              <a 
+                              <a
                                 href={`tel:${(storeCustomizationSetting?.navbar?.phone || storeCustomizationSetting?.footer?.bottom_contact || globalSetting?.contact || "+0044235234").replace(/\s+/g, '')}`}
                                 className="text-store-500 font-semibold hover:text-store-600 hover:underline"
                               >
@@ -1563,7 +1578,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                               </a>
                             </p>
                           </div>
-                           {/* Expected Delivery Time */}
+                          {/* Expected Delivery Time */}
                           {expectedDeliveryTime ? (
                             <div className="mt-4    rounded-md    flex items-center gap-3 text-sm">
                               <FiTruck className="w-5 h-5 text-store-600 flex-shrink-0" />
@@ -1728,11 +1743,10 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <button
                                     data-tab="product-description"
                                     onClick={() => handleTabClick("product-description")}
-                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${
-                                      activeTab === "product-description"
-                                        ? "text-store-600"
-                                        : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === "product-description"
+                                      ? "text-store-600"
+                                      : "text-gray-400 hover:text-gray-600"
+                                      }`}
                                   >
                                     Description
                                     {activeTab === "product-description" && (
@@ -1744,11 +1758,10 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <button
                                     data-tab="specification"
                                     onClick={() => handleTabClick("specification")}
-                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${
-                                      activeTab === "specification"
-                                        ? "text-store-600"
-                                        : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === "specification"
+                                      ? "text-store-600"
+                                      : "text-gray-400 hover:text-gray-600"
+                                      }`}
                                   >
                                     Specification
                                     {activeTab === "specification" && (
@@ -1760,11 +1773,10 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <button
                                     data-tab="key-uses"
                                     onClick={() => handleTabClick("key-uses")}
-                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${
-                                      activeTab === "key-uses"
-                                        ? "text-store-600"
-                                        : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === "key-uses"
+                                      ? "text-store-600"
+                                      : "text-gray-400 hover:text-gray-600"
+                                      }`}
                                   >
                                     Key Uses
                                     {activeTab === "key-uses" && (
@@ -1776,11 +1788,10 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <button
                                     data-tab="how-to-use"
                                     onClick={() => handleTabClick("how-to-use")}
-                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${
-                                      activeTab === "how-to-use"
-                                        ? "text-store-600"
-                                        : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === "how-to-use"
+                                      ? "text-store-600"
+                                      : "text-gray-400 hover:text-gray-600"
+                                      }`}
                                   >
                                     Usage Guide
                                     {activeTab === "how-to-use" && (
@@ -1792,11 +1803,10 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <button
                                     data-tab="safety-information"
                                     onClick={() => handleTabClick("safety-information")}
-                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${
-                                      activeTab === "safety-information"
-                                        ? "text-store-600"
-                                        : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === "safety-information"
+                                      ? "text-store-600"
+                                      : "text-gray-400 hover:text-gray-600"
+                                      }`}
                                   >
                                     Safety
                                     {activeTab === "safety-information" && (
@@ -1808,11 +1818,10 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <button
                                     data-tab="faq"
                                     onClick={() => handleTabClick("faq")}
-                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${
-                                      activeTab === "faq"
-                                        ? "text-store-600"
-                                        : "text-gray-400 hover:text-gray-600"
-                                    }`}
+                                    className={`relative py-4 text-sm font-bold transition-all whitespace-nowrap ${activeTab === "faq"
+                                      ? "text-store-600"
+                                      : "text-gray-400 hover:text-gray-600"
+                                      }`}
                                   >
                                     FAQs
                                     {activeTab === "faq" && (
@@ -1978,7 +1987,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                 {product?.faqs?.title || (product?.faqTitle && product.faqTitle.trim().length
                                   ? product.faqTitle
                                   : t("frequentlyAskedQuestions") ||
-                                    "Common Questions")}
+                                  "Common Questions")}
                               </h3>
                               <div className="space-y-4">
                                 {productFaqs.map((faq, index) => {
@@ -2013,7 +2022,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                             </div>
                           )}
 
-                          
+
                           {/* Manufacturer Details Section */}
                           {product?.manufacturerDetails?.enabled !== false && product?.manufacturerDetails?.items?.length > 0 && (
                             <div className="mt-8 p-6 bg-white">
@@ -2165,12 +2174,12 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                             />
                           </div>
 
-                        
 
-                         
+
+
                         </div>
 
-                          
+
                       </div>
 
                       {/* shipping description card */}
@@ -2221,7 +2230,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                 </div>
               )} */}
 
-             
+
 
               {/* related products */}
               {relatedProducts?.length >= 2 && (
