@@ -33,7 +33,7 @@ router.get("/dashboard-amount", isAuth, isAdmin, getDashboardAmount);
 router.get("/best-seller/chart", isAuth, isAdmin, getBestSellerProductChart);
 
 //get all order by a user
-router.get("/customer/:id", isAuth, isAdmin, getOrderCustomer);
+router.get("/customer/:id", isAuth, getOrderCustomer);
 
 //get a order by id
 router.get("/:id", isAuth, isAdmin, getOrderById);
