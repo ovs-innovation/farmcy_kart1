@@ -3,6 +3,7 @@ import React from "react";
 
 // internal import
 import InvoiceOrderTable from "@/components/invoice/InvoiceOrderTable";
+import { calculateInvoiceTotals } from "@/utils/invoiceCalc";
 
 // Modern invoice layout copied from frontend Invoice.js, adapted for admin
 const InvoiceLayout = ({ data, printRef, globalSetting, currency, getNumberTwo }) => {
@@ -16,42 +17,13 @@ const InvoiceLayout = ({ data, printRef, globalSetting, currency, getNumberTwo }
     data?.userType?.toString().toLowerCase().trim() === "wholesaler" ||
     data?.cart?.[0]?.wholePrice > 0;
 
-  // Aggregate values for summary box - match checkout page exactly
-  const mrpTotal = isWholesaler
-    ? data?.cart?.reduce((sum, item) => sum + ((item.price || 0) * (item.quantity || 1)), 0) || 0
-    : data?.cart?.reduce((sum, item) => {
-        const mrp = item.mrp ?? item.originalPrice ?? item.price ?? 0;
-        const qty = item.quantity || 1;
-        return sum + mrp * qty;
-      }, 0) || 0;
-
-  // Calculate total discount from cart items - match checkout page
-  // For wholesalers, discount is always 0
-  const totalDiscount = isWholesaler 
-    ? 0 
-    : data?.cart?.reduce((sum, item) => {
-        const mrp = item.mrp ?? item.originalPrice ?? item.price ?? 0;
-        const salePrice = item.price ?? 0;
-        const qty = item.quantity || 1;
-        return sum + ((mrp - salePrice) * qty);
-      }, 0) || 0;
-
-  // Calculate total GST - use taxSummary from order data (same as checkout), fallback to calculating from cart
-  const totalGst = data?.taxSummary?.exclusiveTax > 0 
-    ? data.taxSummary.exclusiveTax 
-    : data?.cart?.reduce((sum, item) => {
-        const mrp = item.mrp ?? item.originalPrice ?? item.price ?? 0;
-        const salePrice = item.price ?? 0;
-        const qty = item.quantity || 1;
-        const discount = mrp - salePrice;
-        const sellingPrice = mrp - discount;
-        const gstRate = parseFloat(item.taxRate || item.gstRate || item.gstPercentage || 12);
-        const gstAmount = (sellingPrice * qty * gstRate) / 100;
-        return sum + gstAmount;
-      }, 0) || 0;
-
-  const shippingCharge = data?.shippingCost || 0;
-  const payableAmount = data?.total || 0;
+  // Aggregate values for summary box using centralized calculation utility
+  const totals = calculateInvoiceTotals(data, isWholesaler);
+  const mrpTotal = totals.mrpTotal;
+  const totalDiscount = totals.totalDiscount;
+  const totalGst = totals.totalGst;
+  const shippingCharge = totals.shippingCost;
+  const payableAmount = totals.payableAmount;
 
   const formatInvoiceNumber = (invoice, createdAt) => {
     if (!invoice) return "-";

@@ -31,6 +31,11 @@ const normalizeInvoiceCart = (cart = []) =>
     title: getString(item.title),
     quantity: Number(item.quantity) || 1,
     price: Number(item.prices?.price ?? item.price ?? 0),
+    mrp: Number(item.mrp || item.originalPrice || item.prices?.price || item.price || 0),
+    hsn: item.hsn || item.hsnCode || "",
+    batchNo: item.batchNo || "",
+    expDate: item.expDate || "",
+    taxRate: Number(item.taxRate || item.gstRate || item.gstPercentage || 12),
   }));
 
 const enrichOrderForInvoice = (order, companyInfo) => {

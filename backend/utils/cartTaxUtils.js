@@ -91,7 +91,8 @@ async function populateCartTaxFields(cart) {
         ...item,
         taxRate: item.taxRate ?? productData.taxRate,
         hsn: item.hsn || item.hsnCode || productData.hsnCode,
-        mrp: item.mrp || productData.mrp,
+        mrp: item.mrp || productData.mrp || item.originalPrice || productData.originalPrice || item.price || 0,
+        originalPrice: item.originalPrice || productData.originalPrice || item.mrp || productData.mrp || item.price || 0,
         batchNo: item.batchNo || productData.batchNo,
         expDate: item.expDate || productData.expDate,
       };

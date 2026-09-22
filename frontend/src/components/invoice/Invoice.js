@@ -8,6 +8,7 @@ import useUtilsFunction from "@hooks/useUtilsFunction";
 import useGetSetting from "@hooks/useGetSetting";
 import { pickBrandLogo } from "@utils/brandAssets";
 import { UserContext } from "@context/UserContext";
+import { calculateInvoiceTotals } from "@utils/invoiceCalc";
 
 const Invoice = ({ data, printRef, globalSetting, currency }) => {
   // console.log('invoice data',data)
@@ -17,38 +18,14 @@ const Invoice = ({ data, printRef, globalSetting, currency }) => {
   const { state } = useContext(UserContext) || {};
   const isWholesaler = state?.userInfo?.role && state.userInfo.role.toString().toLowerCase() === "wholesaler";
   const storeColor = storeCustomizationSetting?.theme?.color || "green";
-  // Aggregate values for summary box - match checkout page exactly
-  const mrpTotal =
-    data?.cart?.reduce((sum, item) => {
-      const mrp = item.mrp ?? item.originalPrice ?? item.price ?? 0;
-      const qty = item.quantity || 1;
-      return sum + mrp * qty;
-    }, 0) || 0;
 
-  // Calculate total discount from cart items - match checkout page
-  const totalDiscount = data?.cart?.reduce((sum, item) => {
-    const mrp = item.mrp ?? item.originalPrice ?? item.price ?? 0;
-    const salePrice = item.price ?? 0;
-    const qty = item.quantity || 1;
-    return sum + ((mrp - salePrice) * qty);
-  }, 0) || 0;
-
-  // Calculate total GST - use taxSummary from order data (same as checkout), fallback to calculating from cart
-  const totalGst = data?.taxSummary?.exclusiveTax > 0 
-    ? data.taxSummary.exclusiveTax 
-    : data?.cart?.reduce((sum, item) => {
-        const mrp = item.mrp ?? item.originalPrice ?? item.price ?? 0;
-        const salePrice = item.price ?? 0;
-        const qty = item.quantity || 1;
-        const discount = mrp - salePrice;
-        const sellingPrice = mrp - discount;
-        const gstRate = parseFloat(item.taxRate || item.gstRate || item.gstPercentage || 12);
-        const gstAmount = (sellingPrice * qty * gstRate) / 100;
-        return sum + gstAmount;
-      }, 0) || 0;
-
-  const shippingCharge = data?.shippingCost || 0;
-  const payableAmount = data?.total || 0;
+  // Aggregate values for summary box using centralized calculation utility
+  const totals = calculateInvoiceTotals(data, isWholesaler);
+  const mrpTotal = totals.mrpTotal;
+  const totalDiscount = totals.totalDiscount;
+  const totalGst = totals.totalGst;
+  const shippingCharge = totals.shippingCost;
+  const payableAmount = totals.payableAmount;
 
   const formatInvoiceNumber = (invoice, createdAt) => {
     if (!invoice) return "-";

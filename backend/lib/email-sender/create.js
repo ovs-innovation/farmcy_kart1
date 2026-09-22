@@ -171,15 +171,15 @@ function generateInvoiceTable(doc, invoice) {
   for (i = 0; i < invoice.cart.length; i++) {
     const item = invoice.cart[i];
     const position = invoiceTableTop + (i + 1) * 30;
-    total = item.price * item.quantity;
+    const lineTotal = Number(item.price || 0) * (Number(item.quantity) || 1);
     generateTableRow(
       doc,
       position,
-      item.title.substring(0, 25),
+      (item.title || "Product").substring(0, 25),
       "",
-      item.quantity,
-      formatCurrency(invoice.company_info.currency, item.price),
-      formatCurrency(invoice.company_info.currency, total)
+      item.quantity || 1,
+      formatCurrency(invoice.company_info?.currency || "₹", item.price || 0),
+      formatCurrency(invoice.company_info?.currency || "₹", lineTotal)
     );
 
     generateHr(doc, position + 20);
@@ -191,7 +191,7 @@ function generateInvoiceTable(doc, invoice) {
     doc,
     subtotalPosition,
     "SubTotal",
-    "VAT",
+    "VAT/GST",
     "Shipping Cost",
     "Discount",
     "Total"
@@ -201,11 +201,11 @@ function generateInvoiceTable(doc, invoice) {
     doc,
     paymentOptionPosition,
 
-    formatCurrency(invoice.company_info.currency, invoice.subTotal),
-    formatCurrency(invoice.company_info.currency, invoice.vat),
-    formatCurrency(invoice.company_info.currency, invoice.shippingCost),
-    formatCurrency(invoice.company_info.currency, invoice.discount),
-    formatCurrency(invoice.company_info.currency, invoice.total)
+    formatCurrency(invoice.company_info?.currency || "₹", invoice.subTotal || 0),
+    formatCurrency(invoice.company_info?.currency || "₹", invoice.vat || 0),
+    formatCurrency(invoice.company_info?.currency || "₹", invoice.shippingCost || 0),
+    formatCurrency(invoice.company_info?.currency || "₹", Math.abs(invoice.discount || 0)),
+    formatCurrency(invoice.company_info?.currency || "₹", invoice.total || 0)
   );
 
   // const vatPosition = subtotalPosition + 20;
