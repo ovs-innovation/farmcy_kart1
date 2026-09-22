@@ -10,15 +10,14 @@ import { jwtDecode } from "jwt-decode";
 import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 
-//internal import
-import { getUserSession } from "@lib/auth";
+import useCustomerAuth from "@hooks/useCustomerAuth";
 import useGetSetting from "@hooks/useGetSetting";
 import useUtilsFunction from "@hooks/useUtilsFunction";
 import CustomerServices from "@services/CustomerServices";
 import LocationPickerDropdown from "@components/location/LocationPickerDropdown";
 
 const NavBarTop = () => {
-  const userInfo = getUserSession();
+  const { userInfo, isLoggedIn, logout } = useCustomerAuth();
   const router = useRouter();
   const [location, setLocation] = useState(null);
 
@@ -56,13 +55,13 @@ const NavBarTop = () => {
         userId: userInfo?.id,
       }),
     select: (data) => data?.shippingAddress,
-    enabled: !!userInfo?.id,
+    enabled: !!userInfo?.id && isLoggedIn,
   });
 
   // Get address to display (prefer shipping address, then location, then user address)
   const getDisplayAddress = () => {
     // First priority: Shipping address (if user is logged in)
-    if (userInfo && shippingAddressData && Object.keys(shippingAddressData).length > 0) {
+    if (isLoggedIn && userInfo && shippingAddressData && Object.keys(shippingAddressData).length > 0) {
       const addr = shippingAddressData;
       const parts = [
         addr.address,
@@ -72,7 +71,7 @@ const NavBarTop = () => {
       ].filter(Boolean);
       return parts.join(", ") || null;
     }
-    
+
     // Second priority: Geolocation address (from cookies)
     if (location?.address) {
       return location.address;
@@ -80,45 +79,40 @@ const NavBarTop = () => {
     if (location?.pinCode) {
       return `PIN: ${location.pinCode}`;
     }
-    
+
     // Third priority: User's basic address
-    if (userInfo?.address) {
+    if (isLoggedIn && userInfo?.address) {
       return userInfo.address;
     }
-    
+
     return null;
   };
 
   const displayAddress = getDisplayAddress();
 
-
-  const handleLogOut = () => {
-    signOut();
-    Cookies.remove("userInfo");
-    Cookies.remove("couponInfo");
+  const handleLogOut = async () => {
+    if (logout) {
+      await logout();
+    }
     router.push("/");
   };
 
   useEffect(() => {
-    if (userInfo && typeof userInfo.token === "string") {
-      const decoded = jwtDecode(userInfo.token);
+    if (isLoggedIn && userInfo && typeof userInfo.token === "string") {
+      try {
+        const decoded = jwtDecode(userInfo.token);
+        const expireTime = new Date(decoded?.exp * 1000);
+        const currentTime = new Date();
 
-      const expireTime = new Date(decoded?.exp * 1000);
-      const currentTime = new Date();
-
-      // console.log(
-      //   // decoded,
-      //   "expire",
-      //   dayjs(expireTime).format("DD, MMM, YYYY, h:mm A"),
-      //   "currentTime",
-      //   dayjs(currentTime).format("DD, MMM, YYYY, h:mm A")
-      // );
-      if (currentTime >= expireTime) {
-        console.log("token expire, should sign out now..");
-        handleLogOut();
+        if (currentTime >= expireTime) {
+          console.log("Token expired, logging out...");
+          handleLogOut();
+        }
+      } catch (err) {
+        console.warn("Error decoding token:", err);
       }
     }
-  }, [userInfo]);
+  }, [userInfo, isLoggedIn]);
 
   return (
     <>
@@ -126,7 +120,7 @@ const NavBarTop = () => {
         <div className="max-w-screen-2xl mx-auto px-3 sm:px-10">
           <div className="text-gray-700 py-2 font-sans text-xs font-medium border-b flex justify-between items-center">
             <span className="flex items-center gap-2">
-              
+
               {displayAddress ? (
                 <span className="flex items-center text-gray-600">
                   <span
@@ -142,10 +136,10 @@ const NavBarTop = () => {
             </span>
 
             <div className="lg:text-right flex items-center navBar">
-               
-               
+
+
               <Link
-                href={userInfo?.token ? "/user/my-account" : "/auth/login"}
+                href={isLoggedIn ? "/user/my-account" : "/auth/login"}
                 className={`font-medium hover:text-store-600`}
               >
                 {showingTranslateValue(
@@ -153,7 +147,7 @@ const NavBarTop = () => {
                 )}
               </Link>
               <span className="mx-2">|</span>
-              {userInfo?.token ? (
+              {isLoggedIn ? (
                 <button
                   onClick={handleLogOut}
                   className={`flex items-center font-medium hover:text-store-600`}

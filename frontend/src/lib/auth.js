@@ -1,18 +1,12 @@
-import { useSession } from "next-auth/react";
 import Cookies from "js-cookie";
 
 const getUserSession = () => {
-  const { data } = useSession();
-
-  if (data?.user) {
-    return data.user;
-  }
-
   if (typeof window !== "undefined") {
     const cookieUserInfo = Cookies.get("userInfo");
     if (cookieUserInfo) {
       try {
-        return JSON.parse(cookieUserInfo);
+        const parsed = JSON.parse(cookieUserInfo);
+        return parsed?.token ? parsed : null;
       } catch (e) {
         return null;
       }
@@ -23,3 +17,4 @@ const getUserSession = () => {
 };
 
 export { getUserSession };
+

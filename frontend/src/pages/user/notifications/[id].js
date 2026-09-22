@@ -21,11 +21,13 @@ import {
 } from "@utils/notificationHelpers";
 import { notifyError, notifySuccess } from "@utils/toast";
 
+import LoadingForSession from "@components/preloader/LoadingForSession";
+
 const NotificationDetailPage = () => {
   const router = useRouter();
   const { id } = router.query;
   const queryClient = useQueryClient();
-  const { isLoggedIn } = useCustomerAuth();
+  const { isLoggedIn, isAuthLoading, authStatus } = useCustomerAuth();
   const [deleting, setDeleting] = useState(false);
 
   const { data, isLoading, isError } = useQuery({
@@ -37,8 +39,10 @@ const NotificationDetailPage = () => {
   const notification = data?.notification;
 
   useEffect(() => {
-    if (!isLoggedIn) router.replace("/auth/login");
-  }, [isLoggedIn, router]);
+    if (authStatus === "loading") return;
+    if (!isLoggedIn) router.replace("/auth/login?redirectUrl=notifications");
+  }, [authStatus, isLoggedIn, router]);
+
 
   useEffect(() => {
     if (!notification?._id || notification.status !== "unread") return;
@@ -70,7 +74,16 @@ const NotificationDetailPage = () => {
     else router.push(href);
   };
 
+  if (isAuthLoading || authStatus === "loading") {
+    return (
+      <Layout title="Notification" description="Notification details">
+        <LoadingForSession />
+      </Layout>
+    );
+  }
+
   if (!isLoggedIn) return null;
+
 
   return (
     <Layout title="Notification" description="Notification details">

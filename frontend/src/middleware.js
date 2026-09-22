@@ -11,7 +11,11 @@ export async function middleware(request) {
     try {
       cookieUserInfo = JSON.parse(decodeURIComponent(userInfoCookie.value));
     } catch (e) {
-      cookieUserInfo = null;
+      try {
+        cookieUserInfo = JSON.parse(userInfoCookie.value);
+      } catch (err) {
+        cookieUserInfo = null;
+      }
     }
   }
 
@@ -23,6 +27,7 @@ export async function middleware(request) {
 
   return NextResponse.next();
 }
+
 
 // See "Matching Paths" below to learn more
 export const config = {

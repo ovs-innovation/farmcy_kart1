@@ -15,32 +15,13 @@ import {
 import { FiLoader } from "react-icons/fi";
 import { useQuery } from "@tanstack/react-query";
 import { ImCreditCard } from "react-icons/im";
-import useTranslation from "next-translate/useTranslation";
-import { getUserSession } from "@lib/auth";
-
-//internal import
-
-import Layout from "@layout/Layout";
-import Label from "@components/form/Label";
-import Error from "@components/form/Error";
-import CartItem from "@components/cart/CartItem";
-import InputArea from "@components/form/InputArea";
-import useGetSetting from "@hooks/useGetSetting";
-import InputShipping from "@components/form/InputShipping";
-import InputPayment from "@components/form/InputPayment";
-import useCheckoutSubmit from "@hooks/useCheckoutSubmit";
-import useUtilsFunction from "@hooks/useUtilsFunction";
-import SettingServices from "@services/SettingServices";
-import CustomerServices from "@services/CustomerServices";
-import LocationServices from "@services/LocationServices";
-import SwitchToggle from "@components/form/SwitchToggle";
-import { notifySuccess, notifyError } from "@utils/toast";
-import { UserContext } from "@context/UserContext";
-import { isProfileComplete, getDisplayEmail } from "@utils/profileAuth";
+import useCustomerAuth from "@hooks/useCustomerAuth";
+import LoadingForSession from "@components/preloader/LoadingForSession";
 
 const Checkout = () => {
   const { t } = useTranslation();
   const router = useRouter();
+  const { userInfo, isLoggedIn, isAuthLoading, authStatus } = useCustomerAuth();
   const [showAddressModal, setShowAddressModal] = useState(false);
   const [editingAddress, setEditingAddress] = useState(null);
   const [selectedAddress, setSelectedAddress] = useState(null);
@@ -58,15 +39,15 @@ const Checkout = () => {
     addressType: "Home",
     isDefault: false
   });
-  const userInfo = getUserSession();
   const { showingTranslateValue, currency } = useUtilsFunction();
 
   useEffect(() => {
-    if (!userInfo?.token) {
+    if (authStatus === "loading") return;
+    if (!isLoggedIn) {
       router.replace("/auth/login?redirectUrl=checkout");
-      return;
     }
-  }, [userInfo, router]);
+  }, [authStatus, isLoggedIn, router]);
+
 
   useEffect(() => {
     setPortalReady(true);
@@ -435,12 +416,23 @@ const Checkout = () => {
     } catch (error) {
       console.error("Error deleting address:", error);
       notifyError(error?.response?.data?.message || error?.message || "Failed to delete address");
-    }
   };
+
+  if (isAuthLoading || authStatus === "loading") {
+    return (
+      <Layout title="Checkout" description="this is checkout page">
+        <LoadingForSession />
+      </Layout>
+    );
+  }
+
+  if (!isLoggedIn) return null;
 
   const totals = calculateTotals();
 
   return (
+
+
     <>
       <Layout title="Checkout" description="this is checkout page">
         <div className="mx-auto max-w-screen-2xl px-3 sm:px-6 lg:px-10">

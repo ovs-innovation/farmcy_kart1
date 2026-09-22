@@ -13,24 +13,36 @@ import {
 } from "@utils/notificationHelpers";
 import { notifyError, notifySuccess } from "@utils/toast";
 
+import LoadingForSession from "@components/preloader/LoadingForSession";
+
 const NotificationsPage = () => {
   const router = useRouter();
   const queryClient = useQueryClient();
-  const { isLoggedIn, userId } = useCustomerAuth();
+  const { isLoggedIn, isAuthLoading, authStatus, userId } = useCustomerAuth();
   const [deletingId, setDeletingId] = useState(null);
 
   const { data, isLoading } = useQuery({
     queryKey: ["customerNotificationsAll", userId],
     queryFn: () =>
       CustomerNotificationServices.getMyNotifications({ limit: 50, page: 1 }),
-    enabled: isLoggedIn,
+    enabled: isLoggedIn && !!userId,
   });
 
   useEffect(() => {
-    if (!isLoggedIn) router.replace("/auth/login");
-  }, [isLoggedIn, router]);
+    if (authStatus === "loading") return;
+    if (!isLoggedIn) router.replace("/auth/login?redirectUrl=notifications");
+  }, [authStatus, isLoggedIn, router]);
+
+  if (isAuthLoading || authStatus === "loading") {
+    return (
+      <Layout title="Notifications" description="Your notifications">
+        <LoadingForSession />
+      </Layout>
+    );
+  }
 
   if (!isLoggedIn) return null;
+
 
   const notifications = data?.notifications || [];
   const unreadCount = data?.unreadCount || 0;
