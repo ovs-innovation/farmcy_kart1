@@ -1,8 +1,16 @@
 import requests from "./httpServices";
 
 const OrderServices = {
+  checkStock: async (body) => {
+    return requests.post("/order/check-stock", body);
+  },
+
   addOrder: async (body, headers) => {
     return requests.post("/order/add", body, headers);
+  },
+
+  retryShiprocketSync: async (id) => {
+    return requests.post(`/order/${id}/retry-shiprocket`);
   },
 
   createPaymentIntent: async (body) => {

@@ -7,37 +7,86 @@ const DEFAULT_SHIPROCKET_HSN =
 async function populateCartTaxFields(cart) {
   if (!cart || cart.length === 0) return cart;
 
-  const productIds = [
-    ...new Set(
-      cart
-        .filter((item) => item.productId || item.id || item._id)
-        .map((item) => item.productId || item.id || item._id)
-        .filter((id) => mongoose.Types.ObjectId.isValid(id))
-    ),
-  ];
+  const objectIds = [];
+  const stringIdentifiers = [];
+  const titles = [];
 
-  if (productIds.length === 0) return cart;
+  cart.forEach((item) => {
+    const candidates = [item._id, item.id, item.productId].filter(Boolean);
+    candidates.forEach((cand) => {
+      const candStr = String(cand).trim();
+      if (mongoose.Types.ObjectId.isValid(candStr)) {
+        objectIds.push(candStr);
+      } else if (candStr) {
+        stringIdentifiers.push(candStr);
+      }
+    });
 
-  const products = await Product.find({ _id: { $in: productIds } }).select(
-    "_id taxRate hsnCode mrp originalPrice batchNo expDate"
+    const titleStr = typeof item.title === "string" ? item.title : item.title?.en || "";
+    if (titleStr && String(titleStr).trim()) {
+      titles.push(String(titleStr).trim());
+    }
+  });
+
+  const uniqueObjectIds = [...new Set(objectIds)];
+  const uniqueStrings = [...new Set(stringIdentifiers)];
+  const uniqueTitles = [...new Set(titles)];
+
+  const orConditions = [];
+  if (uniqueObjectIds.length > 0) {
+    orConditions.push({ _id: { $in: uniqueObjectIds } });
+  }
+  if (uniqueStrings.length > 0) {
+    orConditions.push({ productId: { $in: uniqueStrings } });
+    orConditions.push({ sku: { $in: uniqueStrings } });
+    orConditions.push({ slug: { $in: uniqueStrings } });
+  }
+  if (uniqueTitles.length > 0) {
+    orConditions.push({ title: { $in: uniqueTitles } });
+    orConditions.push({ "title.en": { $in: uniqueTitles } });
+  }
+
+  if (orConditions.length === 0) return cart;
+
+  const products = await Product.find({ $or: orConditions }).select(
+    "_id productId sku slug title taxRate hsnCode mrp originalPrice batchNo expDate"
   );
 
-  const productMap = {};
+  const productMap = new Map();
   products.forEach((product) => {
-    productMap[product._id.toString()] = {
+    const data = {
       taxRate: product.taxRate || 0,
       hsnCode: product.hsnCode || "",
       mrp: product.mrp || product.originalPrice || 0,
       batchNo: product.batchNo || "",
       expDate: product.expDate || "",
     };
+    if (product._id) productMap.set(product._id.toString(), data);
+    if (product.productId) productMap.set(String(product.productId).trim(), data);
+    if (product.sku) productMap.set(String(product.sku).trim(), data);
+    if (product.slug) productMap.set(String(product.slug).trim(), data);
+    if (typeof product.title === "string") productMap.set(product.title.trim(), data);
+    if (product.title?.en) productMap.set(String(product.title.en).trim(), data);
   });
 
   return cart.map((item) => {
-    const productId = item.productId || item.id || item._id;
-    const productKey = productId?.toString?.();
-    if (productKey && productMap[productKey]) {
-      const productData = productMap[productKey];
+    const keysToTry = [
+      item._id?.toString(),
+      item.id?.toString(),
+      item.productId?.toString(),
+      item.slug,
+      typeof item.title === "string" ? item.title.trim() : item.title?.en?.trim(),
+    ].filter(Boolean);
+
+    let productData = null;
+    for (const key of keysToTry) {
+      if (productMap.has(key)) {
+        productData = productMap.get(key);
+        break;
+      }
+    }
+
+    if (productData) {
       return {
         ...item,
         taxRate: item.taxRate ?? productData.taxRate,

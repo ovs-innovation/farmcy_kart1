@@ -1,4 +1,5 @@
 const Order = require("../models/Order");
+const ShiprocketEventLog = require("../models/ShiprocketEventLog");
 const { syncShiprocketTracking } = require("../services/shiprocketSyncService");
 
 /**
@@ -16,45 +17,66 @@ const handleShiprocketWebhook = async (req, res) => {
       return res.status(401).send({ message: "Unauthorized: Invalid API Key" });
     }
 
-    const payload = req.body;
+    const payload = req.body || {};
     console.log("Shiprocket Webhook Received:", JSON.stringify(payload, null, 2));
 
-    // Shiprocket webhooks can send multiple types of data
-    // We primarily care about tracking updates which usually have 'awb' or 'shipment_id'
     const awb = payload.awb || payload.awb_code;
     const shipmentId = payload.shipment_id;
-    const externalOrderId = payload.order_id; // This should be our MongoDB Order ID
+    const externalOrderId = payload.order_id;
 
     if (!awb && !shipmentId) {
       return res.status(400).send({ message: "Invalid webhook payload: No AWB or Shipment ID" });
+    }
+
+    // Construct deterministic eventId for persistent deduplication
+    const eventStatus = payload.current_status || payload.shipment_status || payload.status || "update";
+    const eventTime = payload.timestamp || payload.updated_at || "";
+    const eventId = payload.event_id || payload.event || `${awb || shipmentId}_${eventStatus}_${eventTime}`;
+
+    if (eventId) {
+      const existingLog = await ShiprocketEventLog.findOne({ eventId });
+      if (existingLog) {
+        console.log(`Shiprocket Webhook: Event ${eventId} already processed. Skipping.`);
+        return res.status(200).send({ message: "Duplicate webhook event acknowledged." });
+      }
     }
 
     // Find the order in our database
     let order = null;
     
     if (externalOrderId) {
-      // Best way: find by our internal ID
       order = await Order.findById(externalOrderId);
     }
     
     if (!order && awb) {
-      // Fallback: find by AWB code
       order = await Order.findOne({ "shiprocket.awb_code": awb });
     }
 
     if (!order && shipmentId) {
-      // Fallback: find by Shipment ID
       order = await Order.findOne({ "shiprocket.shipment_id": shipmentId });
     }
 
     if (!order) {
       console.warn(`Shiprocket Webhook: Order not found for AWB ${awb} / Shipment ${shipmentId} / ExtOrder ${externalOrderId}`);
-      // We still return 200 to Shiprocket to acknowledge receipt
       return res.status(200).send({ message: "Order not found, but webhook acknowledged" });
     }
 
     // Sync the tracking data using our reusable service
     await syncShiprocketTracking(order._id, payload);
+
+    // Save event log to prevent duplicate processing
+    if (eventId) {
+      await ShiprocketEventLog.create({
+        eventId,
+        awb: String(awb || ""),
+        shipmentId: String(shipmentId || ""),
+        orderId: order._id,
+        eventType: String(eventStatus),
+        payload,
+      }).catch((err) => {
+        console.warn("Event log creation skipped (duplicate key):", err.message);
+      });
+    }
 
     res.status(200).send({ message: "Webhook processed successfully" });
   } catch (error) {

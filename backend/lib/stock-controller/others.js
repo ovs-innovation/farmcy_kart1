@@ -81,28 +81,191 @@ const handleProductQuantity = async (cart) => {
   }
 };
 
+const rollbackReservedStock = async (reservedItems) => {
+  for (const { item, quantity } of reservedItems) {
+    try {
+      const itemId = item._id || item.id;
+      if (item?.isCombination) {
+        const variantId = item?.variant?.productId || item?.variant?._id || item?.variant?.id;
+        const filter = { _id: itemId };
+        if (variantId) {
+          filter["variants.productId"] = variantId;
+        }
+        await Product.updateOne(filter, {
+          $inc: {
+            stock: quantity,
+            "variants.$.quantity": quantity,
+            sales: -quantity,
+          },
+        });
+      } else {
+        await Product.updateOne(
+          { _id: itemId },
+          {
+            $inc: {
+              stock: quantity,
+              sales: -quantity,
+            },
+          }
+        );
+      }
+    } catch (rbErr) {
+      console.error("Rollback failed for item:", item, rbErr.message);
+    }
+  }
+};
+
+const reserveStockAtomically = async (cart, session = null) => {
+  const reservedItems = [];
+  try {
+    for (const p of cart) {
+      const quantity = Number(p.quantity) || 1;
+      const itemId = p._id || p.id;
+      if (p?.isCombination) {
+        const variantId = p?.variant?.productId || p?.variant?._id || p?.variant?.id;
+        const filter = {
+          _id: itemId,
+          stock: { $gte: quantity },
+          "variants.quantity": { $gte: quantity },
+        };
+        if (variantId) {
+          filter["variants.productId"] = variantId;
+        }
+        const options = { new: true };
+        if (session) options.session = session;
+
+        const updatedProduct = await Product.findOneAndUpdate(
+          filter,
+          {
+            $inc: {
+              stock: -quantity,
+              "variants.$.quantity": -quantity,
+              sales: quantity,
+            },
+          },
+          options
+        );
+
+        if (!updatedProduct) {
+          throw new Error(`Insufficient stock for item ${p.title || itemId}`);
+        }
+        reservedItems.push({ item: p, quantity });
+      } else {
+        const options = { new: true };
+        if (session) options.session = session;
+
+        const updatedProduct = await Product.findOneAndUpdate(
+          {
+            _id: itemId,
+            stock: { $gte: quantity },
+          },
+          {
+            $inc: {
+              stock: -quantity,
+              sales: quantity,
+            },
+          },
+          options
+        );
+
+        if (!updatedProduct) {
+          throw new Error(`Insufficient stock for item ${p.title || itemId}`);
+        }
+        reservedItems.push({ item: p, quantity });
+      }
+    }
+    return { ok: true, reservedItems };
+  } catch (err) {
+    if (!session && reservedItems.length > 0) {
+      await rollbackReservedStock(reservedItems);
+    }
+    return { ok: false, error: err.message, reservedItems };
+  }
+};
+
 const checkStock = async (cart) => {
   try {
     if (!cart || !Array.isArray(cart)) {
       console.log("checkStock: cart is not an array", cart);
       return [];
     }
+
+    const objectIds = [];
+    const stringIdentifiers = [];
+    const titles = [];
+
+    cart.forEach((item) => {
+      const candidates = [item._id, item.id, item.productId].filter(Boolean);
+      candidates.forEach((cand) => {
+        const candStr = String(cand).trim();
+        if (mongoose.Types.ObjectId.isValid(candStr)) {
+          objectIds.push(candStr);
+        } else if (candStr) {
+          stringIdentifiers.push(candStr);
+        }
+      });
+
+      const titleStr = typeof item.title === "string" ? item.title : item.title?.en || "";
+      if (titleStr && String(titleStr).trim()) {
+        titles.push(String(titleStr).trim());
+      }
+    });
+
+    const uniqueObjectIds = [...new Set(objectIds)];
+    const uniqueStrings = [...new Set(stringIdentifiers)];
+    const uniqueTitles = [...new Set(titles)];
+
+    const orConditions = [];
+    if (uniqueObjectIds.length > 0) {
+      orConditions.push({ _id: { $in: uniqueObjectIds } });
+    }
+    if (uniqueStrings.length > 0) {
+      orConditions.push({ productId: { $in: uniqueStrings } });
+      orConditions.push({ sku: { $in: uniqueStrings } });
+      orConditions.push({ slug: { $in: uniqueStrings } });
+    }
+    if (uniqueTitles.length > 0) {
+      orConditions.push({ title: { $in: uniqueTitles } });
+      orConditions.push({ "title.en": { $in: uniqueTitles } });
+    }
+
+    const productMap = new Map();
+    if (orConditions.length > 0) {
+      const dbProducts = await Product.find({ $or: orConditions });
+      dbProducts.forEach((prod) => {
+        if (prod._id) productMap.set(prod._id.toString(), prod);
+        if (prod.productId) productMap.set(String(prod.productId).trim(), prod);
+        if (prod.sku) productMap.set(String(prod.sku).trim(), prod);
+        if (prod.slug) productMap.set(String(prod.slug).trim(), prod);
+        if (typeof prod.title === "string") productMap.set(prod.title.trim(), prod);
+        if (prod.title?.en) productMap.set(String(prod.title.en).trim(), prod);
+      });
+    }
+
     const outOfStockItems = [];
     for (const item of cart) {
-      const itemId = item._id || item.id;
-      if (!itemId || !mongoose.Types.ObjectId.isValid(itemId)) {
-        console.log("checkStock: invalid itemId", itemId);
-        continue;
+      const keysToTry = [
+        item._id?.toString(),
+        item.id?.toString(),
+        item.productId?.toString(),
+        item.slug,
+        typeof item.title === "string" ? item.title.trim() : item.title?.en?.trim(),
+      ].filter(Boolean);
+
+      let product = null;
+      for (const key of keysToTry) {
+        if (productMap.has(key)) {
+          product = productMap.get(key);
+          break;
+        }
       }
 
-      const product = await Product.findById(itemId);
       if (!product) {
-        console.log("checkStock: product not found for itemId:", itemId);
-        console.log("checkStock: full item object:", JSON.stringify(item));
+        console.log("checkStock: product not found for item:", JSON.stringify(item));
         outOfStockItems.push({
-          _id: itemId,
+          _id: item._id || item.id,
           id: item.id,
-          title: item.title || "Unknown Product",
+          title: typeof item.title === "string" ? item.title : item.title?.en || "Unknown Product",
           reason: "Product not found in database",
         });
         continue;
@@ -111,9 +274,9 @@ const checkStock = async (cart) => {
       if (item.isCombination) {
         const variantId = item.variant?.productId || item.variant?._id || item.variant?.id;
         if (!variantId) {
-          console.log("checkStock: variantId missing for combination product", itemId);
+          console.log("checkStock: variantId missing for combination product", item._id || item.id);
           outOfStockItems.push({
-            _id: itemId,
+            _id: product._id,
             id: item.id,
             title: item.title,
             reason: "Variant information missing",
@@ -126,9 +289,9 @@ const checkStock = async (cart) => {
         );
 
         if (!variant) {
-          console.log("checkStock: variant not found", variantId, "in product", itemId);
+          console.log("checkStock: variant not found", variantId, "in product", product._id);
           outOfStockItems.push({
-            _id: itemId,
+            _id: product._id,
             id: item.id,
             title: item.title,
             reason: "Variant not found",
@@ -137,9 +300,8 @@ const checkStock = async (cart) => {
         }
 
         if (variant.quantity < item.quantity) {
-          console.log("checkStock: variant out of stock", variantId, "available:", variant.quantity, "requested:", item.quantity);
           outOfStockItems.push({
-            _id: itemId,
+            _id: product._id,
             id: item.id,
             title: item.title,
             variantId: variantId,
@@ -149,11 +311,10 @@ const checkStock = async (cart) => {
         }
       } else {
         if (product.stock < item.quantity) {
-          console.log("checkStock: product out of stock", itemId, "available:", product.stock, "requested:", item.quantity);
           outOfStockItems.push({
-            _id: itemId,
+            _id: product._id,
             id: item.id,
-            title: item.title,
+            title: typeof item.title === "string" ? item.title : item.title?.en || product.title?.en || product.title,
             available: product.stock,
             requested: item.quantity,
           });
@@ -207,4 +368,6 @@ module.exports = {
   handleProductQuantity,
   handleProductAttribute,
   checkStock,
+  reserveStockAtomically,
+  rollbackReservedStock,
 };

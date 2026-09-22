@@ -11,23 +11,29 @@ const Customer = require("../models/Customer");
 const Product = require("../models/Product");
 const Setting = require("../models/Setting");
 const Brand = require("../models/Brand");
+const Coupon = require("../models/Coupon");
+const dayjs = require("dayjs");
 const { sendEmail } = require("../lib/email-sender/sender");
 const { formatAmountForStripe } = require("../lib/stripe/stripe");
 const { handleCreateInvoice } = require("../lib/email-sender/create");
 const {
   handleProductQuantity,
   checkStock,
+  reserveStockAtomically,
+  rollbackReservedStock,
 } = require("../lib/stock-controller/others");
+const { shiprocketRequest } = require("../services/shiprocketService");
 const {
   customerInvoiceEmailBody,
   orderConfirmationBody
 } = require("../lib/email-sender/templates/order-to-customer");
 const { newOrderAdminEmailBody } = require("../lib/email-sender/templates/order-to-admin/new-order");
 const { sendSMS } = require("../lib/sms-sender/sender");
-const { populateCartTaxFields } = require("../utils/cartTaxUtils");
+const { populateCartTaxFields, enrichOrderItemsForShiprocket } = require("../utils/cartTaxUtils");
 const OrderEmailService = require("../services/OrderEmailService");
 const {
   assertCustomerProfileForOrder,
+  assertCustomerReadyForOrder,
   applyCustomerProfileToUserInfo,
   isFakeName,
 } = require("../lib/customer-profile-validation");
@@ -239,45 +245,476 @@ const populateBrandNames = async (order) => {
   return order;
 };
 
-const addOrder = async (req, res) => {
-  // console.log("addOrder", req.body);
+const checkStockHandler = async (req, res) => {
   try {
-    const profileCheck = await assertCustomerProfileForOrder(req.user?._id);
-    if (!profileCheck.ok) {
-      return res.status(400).send({ message: profileCheck.message });
+    const cart = req.body.cart || [];
+    if (!cart || !Array.isArray(cart) || cart.length === 0) {
+      return res.status(400).send({ message: "Cart items are required for stock check." });
     }
 
-    const outOfStockItems = await checkStock(req.body.cart);
+    const outOfStockItems = await checkStock(cart);
     if (outOfStockItems.length > 0) {
       return res.status(400).send({
-        message: "Some items are out of stock",
+        message: "Some items in your cart are out of stock.",
         outOfStockItems,
       });
     }
 
-    // console.log("addOrder: Creating order for user:", req.user ? req.user._id : "Guest (null)");
+    return res.status(200).send({ ok: true, message: "All items in your cart are in stock." });
+  } catch (err) {
+    return res.status(500).send({ message: err.message });
+  }
+};
 
-    const cartWithTax = await populateCartTaxFields(req.body.cart || []);
+const resolveProductsForCart = async (cart = []) => {
+  if (!cart || !Array.isArray(cart) || cart.length === 0) return new Map();
+
+  const objectIds = [];
+  const stringIdentifiers = [];
+  const titles = [];
+
+  cart.forEach((item) => {
+    const candidates = [item._id, item.id, item.productId].filter(Boolean);
+    candidates.forEach((cand) => {
+      const candStr = String(cand).trim();
+      if (mongoose.Types.ObjectId.isValid(candStr)) {
+        objectIds.push(candStr);
+      } else if (candStr) {
+        stringIdentifiers.push(candStr);
+      }
+    });
+
+    const titleStr = typeof item.title === "string" ? item.title : item.title?.en || "";
+    if (titleStr && String(titleStr).trim()) {
+      titles.push(String(titleStr).trim());
+    }
+  });
+
+  const uniqueObjectIds = [...new Set(objectIds)];
+  const uniqueStrings = [...new Set(stringIdentifiers)];
+  const uniqueTitles = [...new Set(titles)];
+
+  const orConditions = [];
+  if (uniqueObjectIds.length > 0) {
+    orConditions.push({ _id: { $in: uniqueObjectIds } });
+  }
+  if (uniqueStrings.length > 0) {
+    orConditions.push({ productId: { $in: uniqueStrings } });
+    orConditions.push({ sku: { $in: uniqueStrings } });
+    orConditions.push({ slug: { $in: uniqueStrings } });
+  }
+  if (uniqueTitles.length > 0) {
+    orConditions.push({ title: { $in: uniqueTitles } });
+    orConditions.push({ "title.en": { $in: uniqueTitles } });
+  }
+
+  if (orConditions.length === 0) return new Map();
+
+  const dbProducts = await Product.find({ $or: orConditions });
+
+  const productMap = new Map();
+  dbProducts.forEach((prod) => {
+    if (prod._id) productMap.set(prod._id.toString(), prod);
+    if (prod.productId) productMap.set(String(prod.productId).trim(), prod);
+    if (prod.sku) productMap.set(String(prod.sku).trim(), prod);
+    if (prod.slug) productMap.set(String(prod.slug).trim(), prod);
+    if (typeof prod.title === "string") productMap.set(prod.title.trim(), prod);
+    if (prod.title?.en) productMap.set(String(prod.title.en).trim(), prod);
+  });
+
+  return productMap;
+};
+
+const recalculateOrderFinancials = async ({ cart, couponCode, userShippingCost = 0 }) => {
+  if (!cart || !Array.isArray(cart) || cart.length === 0) {
+    throw new Error("Cart is empty or invalid.");
+  }
+
+  const productMap = await resolveProductsForCart(cart);
+
+  let trustedSubTotal = 0;
+  const verifiedCart = [];
+
+  for (const item of cart) {
+    const keysToTry = [
+      item._id?.toString(),
+      item.id?.toString(),
+      item.productId?.toString(),
+      item.slug,
+      typeof item.title === "string" ? item.title.trim() : item.title?.en?.trim(),
+    ].filter(Boolean);
+
+    let dbProduct = null;
+    for (const key of keysToTry) {
+      if (productMap.has(key)) {
+        dbProduct = productMap.get(key);
+        break;
+      }
+    }
+
+    if (!dbProduct) {
+      const itemTitle = typeof item.title === "string" ? item.title : item.title?.en || item.id || item._id;
+      throw new Error(`Product not found: ${itemTitle}`);
+    }
+
+    let unitPrice = dbProduct.prices?.price ?? 0;
+    if (item.isCombination) {
+      const variantId = (item.variant?.productId || item.variant?._id || item.variant?.id)?.toString();
+      const variant = dbProduct.variants?.find(
+        (v) => (v.productId || v._id || v.id)?.toString() === variantId
+      );
+      if (variant && variant.price !== undefined && variant.price !== null) {
+        unitPrice = Number(variant.price);
+      }
+    }
+
+    const quantity = Number(item.quantity) || 1;
+    const itemTotal = unitPrice * quantity;
+    trustedSubTotal += itemTotal;
+
+    verifiedCart.push({
+      ...item,
+      _id: dbProduct._id,
+      id: item.id || dbProduct._id.toString(),
+      price: unitPrice,
+      itemTotal: itemTotal,
+      title: item.title || dbProduct.title?.en || dbProduct.title || "Product",
+      taxRate: dbProduct.taxRate || 0,
+      isPriceInclusive: dbProduct.isPriceInclusive || false,
+      hsn: item.hsn || dbProduct.hsnCode || "",
+    });
+  }
+
+  const cartWithTax = await populateCartTaxFields(verifiedCart);
+
+  const nextTaxSummary = cartWithTax.reduce(
+    (acc, item) => {
+      const rate = Number(item?.taxRate ?? 0);
+      const price = Number(item?.price ?? 0);
+      if (!Number.isFinite(rate) || rate <= 0 || !Number.isFinite(price)) {
+        return acc;
+      }
+      const quantity = Number(item?.quantity ?? 1);
+      if (item?.isPriceInclusive) {
+        const basePrice = price / (1 + rate / 100);
+        const taxAmount = (price - basePrice) * quantity;
+        acc.inclusiveTax += taxAmount;
+      } else {
+        const taxAmount = price * (rate / 100) * quantity;
+        acc.exclusiveTax += taxAmount;
+      }
+      return acc;
+    },
+    { inclusiveTax: 0, exclusiveTax: 0 }
+  );
+  nextTaxSummary.totalTax = nextTaxSummary.inclusiveTax + nextTaxSummary.exclusiveTax;
+
+  let calculatedDiscountAmount = 0;
+  let verifiedCoupon = null;
+
+  if (couponCode && String(couponCode).trim()) {
+    const code = String(couponCode).trim();
+    const coupon = await Coupon.findOne({ couponCode: code, status: "show" });
+    if (coupon) {
+      const notExpired = coupon.endTime ? new Date(coupon.endTime) > new Date() : true;
+      if (notExpired && trustedSubTotal >= coupon.minimumAmount) {
+        verifiedCoupon = {
+          couponCode: coupon.couponCode,
+          discountAmount: 0,
+        };
+        const dt = coupon.discountType;
+        if (dt && typeof dt === "object" && dt.type) {
+          calculatedDiscountAmount =
+            dt.type === "fixed"
+              ? Number(dt.value) || 0
+              : trustedSubTotal * ((Number(dt.value) || 0) / 100);
+        }
+        verifiedCoupon.discountAmount = Math.max(0, calculatedDiscountAmount);
+      }
+    }
+  }
+
+  const finalDiscount = Math.max(0, calculatedDiscountAmount);
+  const finalShippingCost = Math.max(0, Number(userShippingCost) || 0);
+
+  const computedTotal = Math.max(
+    0,
+    trustedSubTotal + nextTaxSummary.exclusiveTax + finalShippingCost - finalDiscount
+  );
+
+  return {
+    cartWithTax,
+    subTotal: Number(trustedSubTotal.toFixed(2)),
+    taxSummary: {
+      inclusiveTax: Number(nextTaxSummary.inclusiveTax.toFixed(2)),
+      exclusiveTax: Number(nextTaxSummary.exclusiveTax.toFixed(2)),
+      totalTax: Number(nextTaxSummary.totalTax.toFixed(2)),
+    },
+    discount: Number(finalDiscount.toFixed(2)),
+    coupon: verifiedCoupon,
+    shippingCost: Number(finalShippingCost.toFixed(2)),
+    total: Number(computedTotal.toFixed(2)),
+  };
+};
+
+const createShiprocketOrderForOrder = async (order) => {
+  if (!order || !order.user_info || !order.cart || order.cart.length === 0) {
+    throw new Error("Order details are incomplete for Shiprocket synchronization.");
+  }
+
+  const {
+    name = "",
+    email = "",
+    contact = "",
+    address = "",
+    city = "",
+    state = "",
+    country = "India",
+    zipCode = "000000",
+  } = order.user_info;
+
+  const [firstName = "", ...restName] = name.trim().split(" ");
+  const lastName = restName.join(" ") || "";
+
+  const orderItems = order.cart.map((item, index) => ({
+    name: item.title || item.name || `Item-${index + 1}`,
+    sku: item.sku || item.id || item._id || `SKU-${index + 1}`,
+    units: item.quantity || 1,
+    selling_price: (item.price || item.unit_price || 0).toString(),
+    discount: item.discount || "",
+    tax: item.tax || "",
+    hsn: item.hsn || "3305",
+  }));
+
+  const normalizedOrderItems = await enrichOrderItemsForShiprocket(orderItems, order.cart);
+
+  const payload = {
+    order_id: String(order.invoice || order._id),
+    order_date: dayjs(order.createdAt || new Date()).format("YYYY-MM-DD"),
+    pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION || "home",
+    billing_customer_name: firstName || name || "Customer",
+    billing_last_name: lastName,
+    billing_address: address || "Default Address",
+    billing_city: city || "City",
+    billing_pincode: zipCode || "000000",
+    billing_state: state || city || "State",
+    billing_country: country || "India",
+    billing_email: email || "customer@farmacykart.com",
+    billing_phone: contact || "0000000000",
+    shipping_is_billing: true,
+    shipping_customer_name: firstName || name || "Customer",
+    shipping_last_name: lastName,
+    shipping_address: address || "Default Address",
+    shipping_city: city || "City",
+    shipping_pincode: zipCode || "000000",
+    shipping_country: country || "India",
+    shipping_state: state || city || "State",
+    shipping_email: email || "customer@farmacykart.com",
+    shipping_phone: contact || "0000000000",
+    order_items: normalizedOrderItems,
+    payment_method: order.paymentMethod === "COD" || order.paymentMethod === "Cash" ? "COD" : "Prepaid",
+    shipping_charges: Number(order.shippingCost || 0),
+    total_discount: Number(order.discount || 0),
+    sub_total: Number(order.subTotal || order.total || 0),
+    length: 10,
+    breadth: 10,
+    height: 2,
+    weight: 0.5,
+  };
+
+  const response = await shiprocketRequest("post", "v1/external/orders/create/adhoc", payload);
+
+  await Order.updateOne(
+    { _id: order._id },
+    {
+      $set: {
+        shiprocketSyncStatus: "Created",
+        "shiprocket.order_id": response?.order_id || payload.order_id,
+        "shiprocket.shipment_id": response?.shipment_id,
+        "shiprocket.status": response?.status || response?.status_code,
+        "shiprocket.last_synced": new Date(),
+        shiprocketLastError: "",
+      },
+    }
+  );
+
+  return response;
+};
+
+const retryShiprocketSync = async (req, res) => {
+  try {
+    const order = await Order.findById(req.params.id);
+    if (!order) {
+      return res.status(404).send({ message: "Order not found" });
+    }
+
+    const adminRoles = ["Admin", "Super Admin", "Manager", "CEO"];
+    const isAdminUser = req.user?.role && adminRoles.includes(req.user.role);
+    if (!isAdminUser && order.user?.toString() !== req.user?._id?.toString()) {
+      return res.status(403).send({ message: "Unauthorized access to order." });
+    }
+
+    await Order.updateOne(
+      { _id: order._id },
+      { $set: { shiprocketSyncStatus: "Retrying" }, $inc: { shiprocketRetryCount: 1 } }
+    );
+
+    try {
+      const shiprocketRes = await createShiprocketOrderForOrder(order);
+      return res.status(200).send({ message: "Shiprocket sync successful", data: shiprocketRes });
+    } catch (err) {
+      await Order.updateOne(
+        { _id: order._id },
+        { $set: { shiprocketSyncStatus: "Failed", shiprocketLastError: err.message } }
+      );
+      return res.status(500).send({ message: `Shiprocket sync failed: ${err.message}` });
+    }
+  } catch (err) {
+    return res.status(500).send({ message: err.message });
+  }
+};
+
+const addOrder = async (req, res) => {
+  try {
+    if (!req.user?._id) {
+      return res.status(401).send({ message: "Authentication required to place an order." });
+    }
+
+    const profileCheck = await assertCustomerProfileForOrder(req.user._id);
+    if (!profileCheck.ok) {
+      return res.status(400).send({ message: profileCheck.message });
+    }
+
+    const checkoutRequestId =
+      req.headers["idempotency-key"] || req.body.checkoutRequestId || null;
+
+    if (checkoutRequestId) {
+      const existingOrder = await Order.findOne({ checkoutRequestId });
+      if (existingOrder) {
+        if (existingOrder.user?.toString() !== req.user._id.toString()) {
+          return res.status(400).send({ message: "Idempotency key payload mismatch." });
+        }
+        return res.status(200).send(existingOrder);
+      }
+    }
+
+    const couponCode = req.body.coupon?.couponCode || req.body.couponCode || null;
+    const userShippingCost = req.body.shippingCost || 0;
+
+    let financials;
+    try {
+      financials = await recalculateOrderFinancials({
+        cart: req.body.cart || [],
+        couponCode,
+        userShippingCost,
+      });
+    } catch (finErr) {
+      return res.status(400).send({ message: finErr.message });
+    }
+
+    // Pre-check stock
+    const outOfStockItems = await checkStock(financials.cartWithTax);
+    if (outOfStockItems.length > 0) {
+      return res.status(400).send({
+        message: "Some items in your cart are out of stock.",
+        outOfStockItems,
+      });
+    }
+
+    // Atomic Stock Reservation
+    let stockReservation;
+    let session = null;
+    try {
+      if (mongoose.connection.readyState === 1 && typeof mongoose.startSession === "function") {
+        try {
+          session = await mongoose.startSession();
+        } catch (_) {
+          session = null;
+        }
+      }
+
+      if (session) {
+        await session.withTransaction(async () => {
+          stockReservation = await reserveStockAtomically(financials.cartWithTax, session);
+          if (!stockReservation.ok) {
+            throw new Error(stockReservation.error);
+          }
+        });
+        session.endSession();
+      } else {
+        stockReservation = await reserveStockAtomically(financials.cartWithTax);
+        if (!stockReservation.ok) {
+          return res.status(400).send({ message: stockReservation.error });
+        }
+      }
+    } catch (stockErr) {
+      if (session) session.endSession();
+      return res.status(400).send({ message: stockErr.message || "Failed to reserve stock." });
+    }
+
     const userInfo = applyCustomerProfileToUserInfo(
       req.body.user_info || {},
       profileCheck.customer
     );
 
+    const paymentMethod = req.body.paymentMethod === "Cash" ? "COD" : (req.body.paymentMethod || "COD");
+
     const newOrder = new Order({
       ...req.body,
       user_info: userInfo,
-      cart: cartWithTax,
+      cart: financials.cartWithTax,
+      subTotal: financials.subTotal,
+      taxSummary: financials.taxSummary,
+      discount: financials.discount,
+      coupon: financials.coupon,
+      shippingCost: financials.shippingCost,
+      total: financials.total,
       user: req.user._id,
+      paymentMethod,
+      paymentStatus: "Pending",
+      checkoutRequestId,
+      shiprocketSyncStatus: "Pending",
     });
-    const order = await newOrder.save();
-    res.status(201).send(order);
-    handleProductQuantity(order.cart);
 
-    // Send notifications after order is created (non-blocking)
+    let order;
+    try {
+      order = await newOrder.save();
+    } catch (saveErr) {
+      // Handle E11000 duplicate key error for concurrent requests
+      if (saveErr.code === 11000 && checkoutRequestId) {
+        await rollbackReservedStock(stockReservation.reservedItems);
+        const existingDoc = await Order.findOne({ checkoutRequestId });
+        if (existingDoc) {
+          return res.status(200).send(existingDoc);
+        }
+      }
+      await rollbackReservedStock(stockReservation.reservedItems);
+      throw saveErr;
+    }
+
+    res.status(201).send(order);
+
+    // Non-blocking notifications
     sendOrderNotifications(order);
+
+    // Backend Shiprocket synchronization
+    createShiprocketOrderForOrder(order).catch(async (srErr) => {
+      console.error("Backend Shiprocket order sync failed:", srErr.message);
+      await Order.updateOne(
+        { _id: order._id },
+        {
+          $set: {
+            shiprocketSyncStatus: "Failed",
+            shiprocketLastError: srErr.message,
+          },
+        }
+      );
+    });
+
   } catch (err) {
+    console.error("addOrder error:", err);
     res.status(500).send({
-      message: err.message,
+      message: err.message || "Internal server error during order creation.",
     });
   }
 };
@@ -733,6 +1170,8 @@ const requestRefund = async (req, res) => {
 
 module.exports = {
   addOrder,
+  checkStockHandler,
+  retryShiprocketSync,
   getOrderById,
   getOrderCustomer,
   createPaymentIntent,

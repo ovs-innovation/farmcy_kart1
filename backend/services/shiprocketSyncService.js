@@ -41,6 +41,19 @@ async function syncShiprocketTracking(orderId, trackingData) {
       lastTrackingUpdate: new Date(),
     };
 
+    const isCodPaymentConfirmed =
+      trackingData.cod_collected === true ||
+      trackingData.cod_status?.toLowerCase() === "collected" ||
+      trackingData.payment_status?.toLowerCase() === "paid" ||
+      trackingData.is_cod_collected === true ||
+      String(trackingData.custom_status || "").toLowerCase().includes("cod collected");
+
+    if (isCodPaymentConfirmed && (order.paymentMethod === "COD" || order.paymentMethod === "Cash") && order.paymentStatus !== "Paid") {
+      setUpdates.paymentStatus = "Paid";
+      setUpdates.paymentCollectedAt = new Date();
+      setUpdates.paidAt = new Date();
+    }
+
     const mappedStatus = MAP_SHIPROCKET_STATUS(currentStatus);
     if (mappedStatus) {
       setUpdates.status = mappedStatus;

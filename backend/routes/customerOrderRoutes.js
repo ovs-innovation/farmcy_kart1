@@ -2,6 +2,8 @@ const express = require("express");
 const router = express.Router();
 const {
   addOrder,
+  checkStockHandler,
+  retryShiprocketSync,
   getOrderById,
   getOrderCustomer,
   createPaymentIntent,
@@ -14,8 +16,14 @@ const {
 const { emailVerificationLimit } = require("../lib/email-sender/sender");
 const { isAuth, isAuthOptional } = require("../config/auth");
 
-//add a order
-router.post("/add", isAuthOptional, addOrder);
+// Dedicated stock checking endpoint
+router.post("/check-stock", isAuth, checkStockHandler);
+
+// Add an order (Requires authentication)
+router.post("/add", isAuth, addOrder);
+
+// Retry Shiprocket synchronization for an order
+router.post("/:id([0-9a-fA-F]{24})/retry-shiprocket", isAuth, retryShiprocketSync);
 
 // create stripe payment intent
 router.post("/create-payment-intent", isAuthOptional, createPaymentIntent);

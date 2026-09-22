@@ -259,32 +259,37 @@ const useCheckoutSubmit = (storeSetting) => {
         zipCode: data.zipCode,
       };
 
-      // 1. Pre-check stock before any payment processing
+      // Generate unique idempotency key per logical checkout attempt
+      const checkoutRequestId =
+        typeof crypto !== "undefined" && crypto.randomUUID
+          ? crypto.randomUUID()
+          : `req_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
+      // 1. Dedicated stock pre-check route before payment/order submission
       try {
-        const stockCheckResponse = await OrderServices.createOrderByRazorPay({
-          amount: "0", // Dummy amount for stock check only
+        await OrderServices.checkStock({
           cart: items,
-          checkOnly: true, // Flag to tell backend only to check stock
         });
       } catch (error) {
         const errorData = error?.response?.data;
         if (errorData?.outOfStockItems) {
           errorData.outOfStockItems.forEach((item) => {
             removeItem(item.id || item._id);
-            notifyError(`${item.title} is out of stock and removed from cart.`);
+            notifyError(`${item.title || "Item"} is out of stock and removed from cart.`);
           });
           setIsCheckoutSubmit(false);
           toggleCartDrawer();
           return;
         }
-        // If it's a real 404 or other error, we might want to handle it, 
-        // but for now, we proceed if it's not a stock error
       }
+
+      const normalizedPaymentMethod = data.paymentMethod === "Cash" ? "COD" : data.paymentMethod;
 
       let orderInfo = {
         user_info: userDetails,
         shippingOption: data.shippingOption,
-        paymentMethod: data.paymentMethod,
+        paymentMethod: normalizedPaymentMethod,
+        checkoutRequestId,
         status: "Pending",
         cart: items,
         subTotal: cartTotal,
@@ -310,11 +315,14 @@ const useCheckoutSubmit = (storeSetting) => {
       // Handle payment based on method
       switch (data.paymentMethod) {
         case "RazorPay":
-          // User requested to hide the Razorpay gateway and directly place the order successfully
           await handleCashPayment(orderInfo);
           break;
         case "Cash":
-          await handleCashPayment(orderInfo);
+        case "COD":
+          await handleCashPayment({
+            ...orderInfo,
+            paymentMethod: "COD",
+          });
           break;
         default:
           notifyError("Invalid payment method selected.");
@@ -375,8 +383,10 @@ const useCheckoutSubmit = (storeSetting) => {
         );
       }
 
-      // Trigger Shiprocket order asynchronously
-      syncOrderWithShiprocket(orderResponse);
+      // Backend handles Shiprocket order creation asynchronously
+      if (orderResponse?.shiprocketSyncStatus === "Failed") {
+        console.warn("Backend Shiprocket sync pending:", orderResponse.shiprocketLastError);
+      }
 
       // Add notification
       await NotificationServices.addNotification(notificationInfo);
@@ -493,9 +503,12 @@ const useCheckoutSubmit = (storeSetting) => {
     }
   };
 
-  //handle cash payment
+  //handle cash / COD payment
   const handleCashPayment = async (orderInfo) => {
-    const orderResponse = await OrderServices.addOrder(orderInfo);
+    const headers = orderInfo.checkoutRequestId
+      ? { "Idempotency-Key": orderInfo.checkoutRequestId }
+      : {};
+    const orderResponse = await OrderServices.addOrder(orderInfo, headers);
     await handleOrderSuccess(orderResponse, orderInfo);
   };
 

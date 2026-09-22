@@ -78,6 +78,36 @@ const orderSchema = new mongoose.Schema(
       type: String,
       required: true,
     },
+    paymentStatus: {
+      type: String,
+      enum: ["Pending", "Paid", "Failed", "Refunded"],
+      default: "Pending",
+    },
+    paidAt: {
+      type: Date,
+    },
+    paymentCollectedAt: {
+      type: Date,
+    },
+    checkoutRequestId: {
+      type: String,
+      unique: true,
+      sparse: true,
+      index: true,
+    },
+    shiprocketSyncStatus: {
+      type: String,
+      enum: ["Pending", "Created", "Failed", "Retrying"],
+      default: "Pending",
+    },
+    shiprocketLastError: {
+      type: String,
+      default: "",
+    },
+    shiprocketRetryCount: {
+      type: Number,
+      default: 0,
+    },
     cardInfo: {
       type: Object,
       required: false,
