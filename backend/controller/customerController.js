@@ -1133,69 +1133,276 @@ const loginCustomer = async (req, res) => {
   }
 };
 
+// const signupPhone = async (req, res) => {
+//   try {
+//     const { idToken, intent: rawIntent } = req.body;
+//     const intent = rawIntent === "signup" ? "signup" : "login";
+
+//     if (!idToken) {
+//       return res.status(400).send({ message: "Firebase ID token is required." });
+//     }
+
+//     const admin = require("../config/firebase-admin");
+//     let decodedToken;
+//     try {
+//       if (admin.apps.length > 0) {
+//         decodedToken = await admin.auth().verifyIdToken(idToken);
+//       } else {
+//         console.warn("Firebase Admin not initialized. Decoding token without verification.");
+//         const parts = idToken.split('.');
+//         if (parts.length !== 3) throw new Error("Invalid JWT format");
+//         decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+//       }
+//     } catch (verifyErr) {
+//       console.warn("Firebase verification failed, trying manual decode as fallback:", verifyErr.message);
+//       try {
+//         const parts = idToken.split('.');
+//         if (parts.length === 3) {
+//           decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+//         } else {
+//           throw verifyErr;
+//         }
+//       } catch (fallbackErr) {
+//         return res.status(401).send({ message: "Invalid or expired Firebase token." });
+//       }
+//     }
+
+//     const { email: tokenEmail, phone_number: tokenPhone, uid } = decodedToken;
+//     const phoneNorm = normalizePhone(tokenPhone || req.body.phone);
+//     if (!phoneNorm || phoneNorm.length < 10) {
+//       return res.status(400).send({ message: "Valid phone number is required." });
+//     }
+
+//     const queryConds = [{ firebaseUid: uid }, { phone: phoneNorm }];
+//     if (tokenEmail) queryConds.push({ email: tokenEmail.toLowerCase() });
+//     queryConds.push({ email: buildPlaceholderEmail(phoneNorm) });
+
+//     let customer = await Customer.findOne({ $or: queryConds });
+//     let isNewUser = false;
+
+//     if (intent === "signup" && customer) {
+//       return res.status(409).send({
+//         message: "This mobile number is already registered. Please login instead.",
+//         code: "PHONE_ALREADY_REGISTERED",
+//       });
+//     }
+
+//     if (intent === "login" && !customer) {
+//       return res.status(404).send({
+//         message: "No account found with this number. Please sign up first.",
+//         code: "PHONE_NOT_REGISTERED",
+//       });
+//     }
+
+//     if (!customer) {
+//       isNewUser = true;
+//       customer = new Customer({
+//         name: req.body.name || "Customer",
+//         phone: phoneNorm,
+//         firebaseUid: uid,
+//         role: "customer",
+//         phoneVerified: true,
+//         profileComplete: false,
+//         authProvider: "phone",
+//         emailVerified: false,
+//       });
+//       await customer.save();
+//     } else {
+//       customer.firebaseUid = uid;
+//       customer.phoneVerified = true;
+//       if (!customer.phone) customer.phone = phoneNorm;
+//       if (!customer.authProvider) customer.authProvider = "phone";
+//       customer.lastLogin = new Date();
+//       await customer.save();
+//     }
+
+//     if (customer.role === "wholesaler") {
+//       if (customer.wholesalerStatus === "pending") {
+//         return res.status(403).send({
+//           message:
+//             "Your account is currently under verification. You will be notified once approved.",
+//           wholesalerStatus: "pending",
+//         });
+//       }
+//       if (customer.wholesalerStatus === "rejected") {
+//         return res.status(403).send({
+//           message: "Your wholesaler application has been rejected.",
+//           wholesalerStatus: "rejected",
+//         });
+//       }
+//     }
+
+//     await sendCustomerAuthResponse(res, customer, isNewUser ? "Account created!" : "Login Successful!", {
+//       isNewUser,
+//     });
+//   } catch (err) {
+//     if (err.code === 11000) {
+//       return res.status(403).send({ message: "Phone or email already registered." });
+//     }
+//     res.status(500).send({ message: err.message });
+//   }
+// };
+
 const signupPhone = async (req, res) => {
   try {
-    const { idToken, intent: rawIntent } = req.body;
+    const {
+      idToken,
+      intent: rawIntent,
+      masterOtp,
+      phone: bodyPhone,
+    } = req.body;
+
     const intent = rawIntent === "signup" ? "signup" : "login";
 
-    if (!idToken) {
-      return res.status(400).send({ message: "Firebase ID token is required." });
+    if (!idToken && !masterOtp) {
+      return res.status(400).send({
+        message: "Firebase ID token is required.",
+      });
     }
 
-    const admin = require("../config/firebase-admin");
-    let decodedToken;
-    try {
-      if (admin.apps.length > 0) {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
-      } else {
-        console.warn("Firebase Admin not initialized. Decoding token without verification.");
-        const parts = idToken.split('.');
-        if (parts.length !== 3) throw new Error("Invalid JWT format");
-        decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+    // ── MASTER OTP BYPASS ────────────────────────────────────────
+    const MASTER_OTP = "841301";
+
+    const isMasterBypass =
+      masterOtp === MASTER_OTP ||
+      idToken?.startsWith("MOCK_DEV_TOKEN_");
+
+    let uid;
+    let phoneNorm;
+    let tokenEmail = null;
+
+    if (isMasterBypass) {
+      // Direct bypass for development/testing.
+      // No Firebase verification is performed.
+      phoneNorm = normalizePhone(
+        bodyPhone || idToken?.replace("MOCK_DEV_TOKEN_", "")
+      );
+
+      if (!phoneNorm || phoneNorm.length < 10) {
+        return res.status(400).send({
+          message: "Valid phone number is required.",
+        });
       }
-    } catch (verifyErr) {
-      console.warn("Firebase verification failed, trying manual decode as fallback:", verifyErr.message);
+
+      uid = `dev_user_${phoneNorm}`;
+
+      console.warn(
+        `[DEV] Master OTP bypass used for phone: ${phoneNorm}`
+      );
+    } else {
+      // ── STANDARD FIREBASE VERIFICATION ─────────────────────────
+
+      const admin = require("../config/firebase-admin");
+
+      let decodedToken;
+
       try {
-        const parts = idToken.split('.');
-        if (parts.length === 3) {
-          decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
+        if (admin.apps.length > 0) {
+          decodedToken = await admin.auth().verifyIdToken(idToken);
         } else {
-          throw verifyErr;
+          console.warn(
+            "Firebase Admin not initialized. Decoding token without verification."
+          );
+
+          const parts = idToken.split(".");
+
+          if (parts.length !== 3) {
+            throw new Error("Invalid JWT format");
+          }
+
+          decodedToken = JSON.parse(
+            Buffer.from(parts[1], "base64").toString("utf8")
+          );
         }
-      } catch (fallbackErr) {
-        return res.status(401).send({ message: "Invalid or expired Firebase token." });
+      } catch (verifyErr) {
+        console.warn(
+          "Firebase verification failed, trying manual decode as fallback:",
+          verifyErr.message
+        );
+
+        try {
+          const parts = idToken.split(".");
+
+          if (parts.length === 3) {
+            decodedToken = JSON.parse(
+              Buffer.from(parts[1], "base64").toString("utf8")
+            );
+          } else {
+            throw verifyErr;
+          }
+        } catch (fallbackErr) {
+          return res.status(401).send({
+            message: "Invalid or expired Firebase token.",
+          });
+        }
+      }
+
+      const {
+        email: decodedEmail,
+        phone_number: decodedPhone,
+        uid: decodedUid,
+      } = decodedToken;
+
+      tokenEmail = decodedEmail;
+      uid = decodedUid;
+
+      phoneNorm = normalizePhone(
+        decodedPhone || bodyPhone
+      );
+
+      if (!phoneNorm || phoneNorm.length < 10) {
+        return res.status(400).send({
+          message: "Valid phone number is required.",
+        });
       }
     }
 
-    const { email: tokenEmail, phone_number: tokenPhone, uid } = decodedToken;
-    const phoneNorm = normalizePhone(tokenPhone || req.body.phone);
-    if (!phoneNorm || phoneNorm.length < 10) {
-      return res.status(400).send({ message: "Valid phone number is required." });
+    // ── CUSTOMER LOOKUP ─────────────────────────────────────────
+
+    const queryConds = [
+      { firebaseUid: uid },
+      { phone: phoneNorm },
+    ];
+
+    if (tokenEmail) {
+      queryConds.push({
+        email: tokenEmail.toLowerCase(),
+      });
     }
 
-    const queryConds = [{ firebaseUid: uid }, { phone: phoneNorm }];
-    if (tokenEmail) queryConds.push({ email: tokenEmail.toLowerCase() });
-    queryConds.push({ email: buildPlaceholderEmail(phoneNorm) });
+    queryConds.push({
+      email: buildPlaceholderEmail(phoneNorm),
+    });
 
-    let customer = await Customer.findOne({ $or: queryConds });
+    let customer = await Customer.findOne({
+      $or: queryConds,
+    });
+
     let isNewUser = false;
+
+    // ── SIGNUP / LOGIN VALIDATION ────────────────────────────────
 
     if (intent === "signup" && customer) {
       return res.status(409).send({
-        message: "This mobile number is already registered. Please login instead.",
+        message:
+          "This mobile number is already registered. Please login instead.",
         code: "PHONE_ALREADY_REGISTERED",
       });
     }
 
     if (intent === "login" && !customer) {
       return res.status(404).send({
-        message: "No account found with this number. Please sign up first.",
+        message:
+          "No account found with this number. Please sign up first.",
         code: "PHONE_NOT_REGISTERED",
       });
     }
 
+    // ── CREATE CUSTOMER ─────────────────────────────────────────
+
     if (!customer) {
       isNewUser = true;
+
       customer = new Customer({
         name: req.body.name || "Customer",
         phone: phoneNorm,
@@ -1206,15 +1413,26 @@ const signupPhone = async (req, res) => {
         authProvider: "phone",
         emailVerified: false,
       });
+
       await customer.save();
     } else {
       customer.firebaseUid = uid;
       customer.phoneVerified = true;
-      if (!customer.phone) customer.phone = phoneNorm;
-      if (!customer.authProvider) customer.authProvider = "phone";
+
+      if (!customer.phone) {
+        customer.phone = phoneNorm;
+      }
+
+      if (!customer.authProvider) {
+        customer.authProvider = "phone";
+      }
+
       customer.lastLogin = new Date();
+
       await customer.save();
     }
+
+    // ── WHOLESALER CHECK ─────────────────────────────────────────
 
     if (customer.role === "wholesaler") {
       if (customer.wholesalerStatus === "pending") {
@@ -1224,6 +1442,7 @@ const signupPhone = async (req, res) => {
           wholesalerStatus: "pending",
         });
       }
+
       if (customer.wholesalerStatus === "rejected") {
         return res.status(403).send({
           message: "Your wholesaler application has been rejected.",
@@ -1232,14 +1451,26 @@ const signupPhone = async (req, res) => {
       }
     }
 
-    await sendCustomerAuthResponse(res, customer, isNewUser ? "Account created!" : "Login Successful!", {
-      isNewUser,
-    });
+    // ── AUTH RESPONSE ───────────────────────────────────────────
+
+    await sendCustomerAuthResponse(
+      res,
+      customer,
+      isNewUser ? "Account created!" : "Login Successful!",
+      {
+        isNewUser,
+      }
+    );
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(403).send({ message: "Phone or email already registered." });
+      return res.status(403).send({
+        message: "Phone or email already registered.",
+      });
     }
-    res.status(500).send({ message: err.message });
+
+    res.status(500).send({
+      message: err.message,
+    });
   }
 };
 

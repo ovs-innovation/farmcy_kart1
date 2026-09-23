@@ -30,20 +30,18 @@ import useGetSetting from "@hooks/useGetSetting";
 import useUtilsFunction from "@hooks/useUtilsFunction";
 import PrescriptionStatus from "@components/prescription/PrescriptionStatus";
 import { setToken } from "@services/httpServices";
+import useCustomerAuth from "@hooks/useCustomerAuth";
+import LoadingForSession from "@components/preloader/LoadingForSession";
 
 const Dashboard = ({ title, description, children }) => {
   const router = useRouter();
-  const { data: session, status } = useSession();
-  const { state: userState, dispatch } = useContext(UserContext);
+  const { userInfo, userId, isLoggedIn, isAuthenticated, isAuthLoading, authStatus, logout } = useCustomerAuth();
   const { isLoading, setIsLoading, currentPage } = useContext(SidebarContext);
+
 
   const { storeCustomizationSetting } = useGetSetting();
   const { showingTranslateValue } = useUtilsFunction();
   const [isOpen, setIsOpen] = useState(false);
-
-  const userInfo = userState?.userInfo || session?.user;
-  const userId = userInfo?._id || userInfo?.id;
-  const isAuthenticated = !!userInfo?.token || status === "authenticated";
 
   const {
     data,
@@ -56,21 +54,38 @@ const Dashboard = ({ title, description, children }) => {
         page: currentPage,
         limit: 10,
       }),
-    enabled: isAuthenticated,
+    enabled: isLoggedIn && !!userId,
   });
 
-  const handleLogOut = () => {
-    signOut({ redirect: false });
-    Cookies.remove("userInfo");
-    Cookies.remove("couponInfo");
-    setToken(null);
-    dispatch({ type: "USER_LOGOUT" });
+  const handleLogOut = async () => {
+    if (logout) {
+      await logout();
+    }
     router.push("/");
   };
 
   useEffect(() => {
     setIsLoading(false);
   }, []);
+
+  useEffect(() => {
+    if (authStatus === "loading") return;
+    if (!isLoggedIn) {
+      router.replace("/auth/login?redirectUrl=dashboard");
+    }
+  }, [authStatus, isLoggedIn, router]);
+
+  if (isAuthLoading || authStatus === "loading") {
+    return (
+      <Layout title={title || "Dashboard"} description={description || "User Dashboard"}>
+        <LoadingForSession />
+      </Layout>
+    );
+  }
+
+  if (!isLoggedIn) {
+    return null;
+  }
 
   const userSidebar = [
     {

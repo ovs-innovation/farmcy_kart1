@@ -9,7 +9,7 @@ import { FiShoppingCart, FiHeart } from "react-icons/fi";
 import { FaPrescriptionBottleAlt } from "react-icons/fa";
 import { useQuery } from "@tanstack/react-query";
 
-import { getUserSession } from "@lib/auth";
+import useCustomerAuth from "@hooks/useCustomerAuth";
 import useWishlist from "@hooks/useWishlist";
 import useGetSetting from "@hooks/useGetSetting";
 import useUtilsFunction from "@hooks/useUtilsFunction";
@@ -100,7 +100,7 @@ const Navbar = () => {
   const { toggleCartDrawer } = useContext(SidebarContext);
   const { totalUniqueItems } = useCart();
   const { count: wishlistCount } = useWishlist();
-  const userInfo = getUserSession();
+  const { userInfo, isLoggedIn, isAuthLoading } = useCustomerAuth();
 
   const initialShowSearch = router.pathname !== "/" || router.pathname === "/search";
   const [showSearchInNavbar, setShowSearchInNavbar] = useState(initialShowSearch);
@@ -260,7 +260,9 @@ const Navbar = () => {
                 )}
               </button>
               <div className="w-px h-8 bg-gray-200 mx-1 hidden sm:block" />
-              {userInfo?.image ? (
+              {isAuthLoading ? (
+                <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-gray-200 animate-pulse" />
+              ) : isLoggedIn && userInfo?.image ? (
                 <Link href="/user/dashboard">
                   <Image
                     width={36}
@@ -270,7 +272,7 @@ const Navbar = () => {
                     className="rounded-full w-8 h-8 sm:w-9 sm:h-9 border-2 border-store-100 object-cover"
                   />
                 </Link>
-              ) : userInfo?.name ? (
+              ) : isLoggedIn && userInfo?.name ? (
                 <Link
                   href="/user/dashboard"
                   className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border-2 border-store-500 text-store-600 font-bold text-sm"
