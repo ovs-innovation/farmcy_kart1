@@ -77,6 +77,7 @@ export const UserProvider = ({ children }) => {
     }
     Cookies.remove("userInfo");
     Cookies.remove("couponInfo");
+    Cookies.remove("shippingAddress");
     setToken(null);
     dispatch({ type: "USER_LOGOUT" });
   }, []);

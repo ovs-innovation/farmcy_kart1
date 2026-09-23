@@ -1,7 +1,7 @@
 import "@styles/custom.css";
 import "@lib/firebase";
 import "react-toastify/dist/ReactToastify.css";
-import { CartProvider } from "react-use-cart";
+import CartProviderWrapper from "@components/common/CartProviderWrapper";
 import { PersistGate } from "redux-persist/integration/react";
 import { persistStore } from "redux-persist";
 import { Provider } from "react-redux";
@@ -102,11 +102,11 @@ function MyApp({ Component, pageProps, announcements = [] }) {
               <PersistGate loading={null} persistor={persistor}>
                 <SidebarProvider>
                   <AnnouncementsProvider announcements={announcements}>
-                    <CartProvider>
+                    <CartProviderWrapper>
                       <DefaultSeo />
                       <FcmTokenHandler />
                       <Component {...pageProps} />
-                    </CartProvider>
+                    </CartProviderWrapper>
                   </AnnouncementsProvider>
                 </SidebarProvider>
               </PersistGate>

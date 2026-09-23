@@ -22,10 +22,15 @@ const useCartDB = () => {
         getItem,
     } = useCart();
 
-    const { state: { userInfo } } = useContext(UserContext) || { state: {} };
+    const userContext = useContext(UserContext);
+    const userInfo = userContext?.userInfo || userContext?.state?.userInfo;
+    const authStatus = userContext?.authStatus || userContext?.state?.authStatus;
 
-    // Resolve customerId – supports both _id and id fields
-    const customerId = userInfo?._id || userInfo?.id || null;
+    // Resolve customerId only when authenticated – supports both _id and id fields
+    const customerId =
+        authStatus === "authenticated" && (userInfo?._id || userInfo?.id)
+            ? userInfo?._id || userInfo?.id
+            : null;
 
     // ─── Helpers ────────────────────────────────────────────────────────────────
 
