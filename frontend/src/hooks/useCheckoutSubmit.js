@@ -506,7 +506,7 @@ const useCheckoutSubmit = (storeSetting) => {
   //handle cash / COD payment
   const handleCashPayment = async (orderInfo) => {
     const headers = orderInfo.checkoutRequestId
-      ? { "Idempotency-Key": orderInfo.checkoutRequestId }
+      ? { headers: { "Idempotency-Key": orderInfo.checkoutRequestId } }
       : {};
     const orderResponse = await OrderServices.addOrder(orderInfo, headers);
     await handleOrderSuccess(orderResponse, orderInfo);
@@ -587,7 +587,10 @@ const useCheckoutSubmit = (storeSetting) => {
             };
 
             const orderData = { ...orderInfo, razorpay: razorpayDetails };
-            const orderResponse = await OrderServices.addRazorpayOrder(orderData);
+            const headers = orderInfo.checkoutRequestId
+              ? { headers: { "Idempotency-Key": orderInfo.checkoutRequestId } }
+              : {};
+            const orderResponse = await OrderServices.addRazorpayOrder(orderData, headers);
             await handleOrderSuccess(orderResponse, orderInfo);
           } catch (err) {
             console.error("Razorpay order save error:", err);

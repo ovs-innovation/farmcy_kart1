@@ -17,8 +17,8 @@ const OrderServices = {
     return requests.post("/order/create-payment-intent", body);
   },
 
-  addRazorpayOrder: async (body) => {
-    return requests.post("/order/add/razorpay", body);
+  addRazorpayOrder: async (body, headers) => {
+    return requests.post("/order/add/razorpay", body, headers);
   },
 
   createOrderByRazorPay: async (body) => {

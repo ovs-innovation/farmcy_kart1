@@ -574,6 +574,39 @@ const retryShiprocketSync = async (req, res) => {
   }
 };
 
+const extractAndValidateCheckoutRequestId = (req) => {
+  const headerKey =
+    req.headers["idempotency-key"] ||
+    (typeof req.get === "function" ? req.get("idempotency-key") : undefined);
+  const bodyKey = req.body?.checkoutRequestId;
+
+  const cleanHeader =
+    typeof headerKey === "string" ? headerKey.trim() : undefined;
+  const cleanBody =
+    typeof bodyKey === "string" ? bodyKey.trim() : undefined;
+
+  if (cleanHeader && cleanBody && cleanHeader !== cleanBody) {
+    return {
+      error: "Idempotency key does not match checkout request ID.",
+      status: 400,
+    };
+  }
+
+  const rawKey = cleanHeader || cleanBody;
+  if (!rawKey) {
+    return { key: undefined };
+  }
+
+  if (rawKey.length > 255) {
+    return {
+      error: "Invalid checkout request ID or idempotency key length.",
+      status: 400,
+    };
+  }
+
+  return { key: rawKey };
+};
+
 const addOrder = async (req, res) => {
   try {
     if (!req.user?._id) {
@@ -585,8 +618,15 @@ const addOrder = async (req, res) => {
       return res.status(400).send({ message: profileCheck.message });
     }
 
-    const checkoutRequestId =
-      req.headers["idempotency-key"] || req.body.checkoutRequestId || null;
+    const {
+      key: checkoutRequestId,
+      error: keyError,
+      status: keyStatus,
+    } = extractAndValidateCheckoutRequestId(req);
+
+    if (keyError) {
+      return res.status(keyStatus || 400).send({ message: keyError });
+    }
 
     if (checkoutRequestId) {
       const existingOrder = await Order.findOne({ checkoutRequestId });
@@ -659,7 +699,7 @@ const addOrder = async (req, res) => {
 
     const paymentMethod = req.body.paymentMethod === "Cash" ? "COD" : (req.body.paymentMethod || "COD");
 
-    const newOrder = new Order({
+    const newOrderData = {
       ...req.body,
       user_info: userInfo,
       cart: financials.cartWithTax,
@@ -672,23 +712,40 @@ const addOrder = async (req, res) => {
       user: req.user._id,
       paymentMethod,
       paymentStatus: "Pending",
-      checkoutRequestId,
       shiprocketSyncStatus: "Pending",
-    });
+    };
+
+    if (checkoutRequestId) {
+      newOrderData.checkoutRequestId = checkoutRequestId;
+    } else {
+      delete newOrderData.checkoutRequestId;
+    }
+
+    const newOrder = new Order(newOrderData);
 
     let order;
     try {
       order = await newOrder.save();
     } catch (saveErr) {
       // Handle E11000 duplicate key error for concurrent requests
-      if (saveErr.code === 11000 && checkoutRequestId) {
-        await rollbackReservedStock(stockReservation.reservedItems);
-        const existingDoc = await Order.findOne({ checkoutRequestId });
-        if (existingDoc) {
-          return res.status(200).send(existingDoc);
+      if (saveErr.code === 11000) {
+        if (stockReservation?.reservedItems) {
+          await rollbackReservedStock(stockReservation.reservedItems);
         }
+        if (checkoutRequestId) {
+          const existingDoc = await Order.findOne({ checkoutRequestId });
+          if (existingDoc) {
+            return res.status(200).send(existingDoc);
+          }
+        }
+        console.error("Duplicate key error during order save:", saveErr.message);
+        return res.status(409).send({
+          message: "An order with these details is already being processed. Please check your orders.",
+        });
       }
-      await rollbackReservedStock(stockReservation.reservedItems);
+      if (stockReservation?.reservedItems) {
+        await rollbackReservedStock(stockReservation.reservedItems);
+      }
       throw saveErr;
     }
 
@@ -886,6 +943,26 @@ const addRazorpayOrder = async (req, res) => {
       return res.status(400).send({ message: profileCheck.message });
     }
 
+    const {
+      key: checkoutRequestId,
+      error: keyError,
+      status: keyStatus,
+    } = extractAndValidateCheckoutRequestId(req);
+
+    if (keyError) {
+      return res.status(keyStatus || 400).send({ message: keyError });
+    }
+
+    if (checkoutRequestId) {
+      const existingOrder = await Order.findOne({ checkoutRequestId });
+      if (existingOrder) {
+        if (existingOrder.user?.toString() !== req.user._id.toString()) {
+          return res.status(400).send({ message: "Idempotency key payload mismatch." });
+        }
+        return res.status(200).send(existingOrder);
+      }
+    }
+
     const paymentInfo = req.body.cardInfo || req.body.paymentData || {};
     const razorpay_order_id =
       paymentInfo.razorpay_order_id || paymentInfo.order_id;
@@ -921,7 +998,7 @@ const addRazorpayOrder = async (req, res) => {
       profileCheck.customer
     );
 
-    const newOrder = new Order({
+    const newOrderData = {
       ...req.body,
       user_info: userInfo,
       cart: cartWithTax,
@@ -932,8 +1009,35 @@ const addRazorpayOrder = async (req, res) => {
         razorpay_signature,
       },
       paymentMethod: req.body.paymentMethod || "Online",
-    });
-    const order = await newOrder.save();
+    };
+
+    if (checkoutRequestId) {
+      newOrderData.checkoutRequestId = checkoutRequestId;
+    } else {
+      delete newOrderData.checkoutRequestId;
+    }
+
+    const newOrder = new Order(newOrderData);
+
+    let order;
+    try {
+      order = await newOrder.save();
+    } catch (saveErr) {
+      if (saveErr.code === 11000) {
+        if (checkoutRequestId) {
+          const existingDoc = await Order.findOne({ checkoutRequestId });
+          if (existingDoc) {
+            return res.status(200).send(existingDoc);
+          }
+        }
+        console.error("Duplicate key error during Razorpay order save:", saveErr.message);
+        return res.status(409).send({
+          message: "An order with these details is already being processed. Please check your orders.",
+        });
+      }
+      throw saveErr;
+    }
+
     res.status(201).send(order);
     handleProductQuantity(order.cart);
 
