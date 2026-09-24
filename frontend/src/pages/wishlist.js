@@ -17,12 +17,13 @@ import AttributeServices from "@services/AttributeServices";
 import { notifySuccess, notifyError } from "@utils/toast";
 import PageHeader from "@components/header/PageHeader";
 
+import useCartDB from "@hooks/useCartDB";
 import useWishlist from "@hooks/useWishlist";
 
 const Wishlist = ({ attributes }) => {
   const { t } = useTranslation();
   const router = useRouter();
-  const { addItem } = useCart();
+  const { addItemWithDB } = useCartDB();
   const { storeCustomizationSetting } = useGetSetting();
   const { showingTranslateValue } = useUtilsFunction();
   const { state } = useContext(UserContext) || {};
@@ -44,7 +45,7 @@ const Wishlist = ({ attributes }) => {
     }
   };
 
-  const addToCartFromWishlist = (product) => {
+  const addToCartFromWishlist = async (product) => {
     if (product.stock < 1) {
       notifyError("Insufficient stock!");
       return;
@@ -64,14 +65,18 @@ const Wishlist = ({ attributes }) => {
       ...updatedProduct,
       title: showingTranslateValue(product?.title),
       id: product._id,
+      productId: product._id,
       variant: product.prices,
       price: priceToUse,
       originalPrice: product.prices?.originalPrice,
+      image: product.image?.[0] || product.images?.[0],
     };
 
     const minQty = isWholesaler && product?.minQuantity ? Number(product.minQuantity) : 1;
-    addItem(newItem, minQty);
-    notifySuccess("Product added to cart");
+    const res = await addItemWithDB(newItem, minQty);
+    if (res?.success) {
+      notifySuccess("Product added to cart");
+    }
   };
 
   return (

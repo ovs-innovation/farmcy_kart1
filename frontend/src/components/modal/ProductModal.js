@@ -192,6 +192,7 @@ const ProductModal = ({
 
       const newItem = {
         ...updatedProduct,
+        productId: p._id,
         id: `${p?.variants.length <= 0
             ? p._id
             : p._id +

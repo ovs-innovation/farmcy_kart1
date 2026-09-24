@@ -9,7 +9,8 @@ const useAddToCart = () => {
   const { items } = useCart();
   const { addItemWithDB, updateQuantityWithDB } = useCartDB();
 
-  const { state: { userInfo } } = useContext(UserContext) || {};
+  const userContext = useContext(UserContext);
+  const userInfo = userContext?.userInfo || userContext?.state?.userInfo;
   const isWholesalerUser =
     userInfo?.role &&
     String(userInfo.role).toLowerCase() === "wholesaler";
@@ -36,11 +37,12 @@ const useAddToCart = () => {
 
   /**
    * handleAddItem
-   * Adds a product to the local cart AND persists it to the database.
+   * Adds a product to the local cart AND persists it to the database if authenticated.
    */
   const handleAddItem = async (product, qty) => {
     const quantityToAdd = typeof qty === "number" ? qty : item;
-    const result = items.find((i) => i.id === product.id);
+    const targetId = product.id || product._id;
+    const result = items.find((i) => i.id === targetId || i.productId === targetId);
 
     const { variants, categories, description, ...updatedProduct } = product;
 
@@ -60,6 +62,8 @@ const useAddToCart = () => {
         product.price ||
         0;
 
+    updatedProduct.id = targetId;
+    updatedProduct.productId = product._id || product.id;
     updatedProduct.minQuantity = minQuantity;
     updatedProduct.price = effectivePrice;
     updatedProduct.stock =
@@ -71,18 +75,26 @@ const useAddToCart = () => {
     updatedProduct.wholePrice = product?.wholePrice;
 
     const available = getAvailableStock(product);
+    const titleText =
+      typeof product.title === "object"
+        ? product.title?.en || "Product"
+        : product.title || "Product";
 
     if (result !== undefined) {
       if (result?.quantity + quantityToAdd <= available) {
-        await addItemWithDB(updatedProduct, quantityToAdd);
-        notifySuccess(`${quantityToAdd} ${product.title} added to cart!`);
+        const res = await addItemWithDB(updatedProduct, quantityToAdd);
+        if (res?.success) {
+          notifySuccess(`${quantityToAdd} ${titleText} added to cart!`);
+        }
       } else {
         notifyError("Insufficient stock!");
       }
     } else {
       if (quantityToAdd <= available) {
-        await addItemWithDB(updatedProduct, quantityToAdd);
-        notifySuccess(`${quantityToAdd} ${product.title} added to cart!`);
+        const res = await addItemWithDB(updatedProduct, quantityToAdd);
+        if (res?.success) {
+          notifySuccess(`${quantityToAdd} ${titleText} added to cart!`);
+        }
       } else {
         notifyError("Insufficient stock!");
       }
@@ -94,15 +106,18 @@ const useAddToCart = () => {
    * Increments quantity by 1, updating both local cart and DB.
    */
   const handleIncreaseQuantity = async (product) => {
-    const result = items?.find((p) => p.id === product.id);
+    const targetId = product.id || product._id;
+    const result = items?.find((p) => p.id === targetId || p.productId === targetId);
     const available = getAvailableStock(product);
 
     if (result) {
       if (result?.quantity + 1 <= available) {
-        await updateQuantityWithDB(product.id, result.quantity + 1);
+        await updateQuantityWithDB(targetId, result.quantity + 1);
       } else {
         notifyError("Insufficient stock!");
       }
+    } else {
+      await handleAddItem(product, 1);
     }
   };
 
@@ -113,4 +128,5 @@ const useAddToCart = () => {
     handleIncreaseQuantity,
   };
 };
-export default useAddToCart;
+
+export default useAddToCart;

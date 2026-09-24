@@ -11,6 +11,7 @@ import Price from "@components/common/Price";
 import Stock from "@components/common/Stock";
 import { notifyError, notifySuccess } from "@utils/toast";
 import useAddToCart from "@hooks/useAddToCart";
+import useCartDB from "@hooks/useCartDB";
 import { UserContext } from "@context/UserContext";
 import useGetSetting from "@hooks/useGetSetting";
 import Discount from "@components/common/Discount";
@@ -23,10 +24,11 @@ import useWishlist from "@hooks/useWishlist";
 const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscount = false, hideWishlistCompare = false }) => {
   const [modalOpen, setModalOpen] = useState(false);
 
-  const { items, addItem, updateItemQuantity, inCart, getItem } = useCart();
+  const { items, inCart, getItem } = useCart();
+  const { updateQuantityWithDB } = useCartDB();
   const { state } = useContext(UserContext) || {};
   const isWholesaler = state?.userInfo?.role && state.userInfo.role.toString().toLowerCase() === "wholesaler";
-  const { handleIncreaseQuantity } = useAddToCart();
+  const { handleIncreaseQuantity, handleAddItem: handleAddItemFromHook } = useAddToCart();
   const { globalSetting } = useGetSetting();
   const { storeCustomizationSetting } = useGetSetting();
   const { showingTranslateValue, getNumberTwo } = useUtilsFunction();
@@ -39,7 +41,7 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
   const isFavourited = wishlistItems?.some((item) => String(item?._id) === String(product?._id));
 
 
-  const handleAddItem = (p) => {
+  const handleAddItem = async (p) => {
     if (p.stock < 1) return notifyError("Insufficient stock!");
 
     if (p?.variants?.length > 0) {
@@ -57,6 +59,7 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
       ...updatedProduct,
       title: showingTranslateValue(p?.title),
       id: p._id,
+      productId: p._id,
       variant: p.prices,
       price: priceToUse,
       originalPrice: product.prices?.originalPrice,
@@ -65,7 +68,7 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
 
     // If wholesaler and product requires a minimum quantity, add that minimum amount instead of 1
     const minQty = isWholesaler && product?.minQuantity ? Number(product.minQuantity) : 1;
-    addItem(newItem, minQty);
+    await handleAddItemFromHook(newItem, minQty);
   };
 
   const handleToggleWishlist = (e) => {
@@ -294,13 +297,13 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
                           className={`h-8 w-auto flex items-center justify-evenly py-1 px-2 bg-store-500 text-white rounded-md`}
                         >
                           <button
-                            onClick={() => {
+                            onClick={async () => {
                               const minQty = isWholesaler && product?.minQuantity ? Number(product.minQuantity) : 1;
                               if (isWholesaler && product?.minQuantity && item.quantity <= minQty) {
                                 notifyError(`Minimum quantity is ${minQty}`);
                                 return;
                               }
-                              updateItemQuantity(item.id, item.quantity - 1);
+                              await updateQuantityWithDB(item.id, item.quantity - 1);
                             }}
                             disabled={isWholesaler && product?.minQuantity && item.quantity <= Number(product.minQuantity)}
                             className={`${isWholesaler && product?.minQuantity && item.quantity <= Number(product.minQuantity) ? 'opacity-50 cursor-not-allowed' : ''}`}
@@ -313,11 +316,13 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
                             {item.quantity}
                           </p>
                           <button
-                            onClick={() =>
-                              item?.variants?.length > 0
-                                ? handleAddItem(item)
-                                : handleIncreaseQuantity({ ...item, stock: product.stock })
-                            }
+                            onClick={async () => {
+                              if (item?.variants?.length > 0) {
+                                await handleAddItem(item);
+                              } else {
+                                await handleIncreaseQuantity({ ...item, stock: product.stock });
+                              }
+                            }}
                           >
                             <span className="text-white text-sm">
                               <IoAdd />

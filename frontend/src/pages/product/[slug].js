@@ -89,7 +89,6 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
     useUtilsFunction();
   const { isLoading, setIsLoading } = useContext(SidebarContext);
   const { handleAddItem, item, setItem } = useAddToCart();
-  const { setItems, addItem } = useCart();
   const { storeCustomizationSetting, globalSetting } = useGetSetting();
 
   // Handle Product View Tracking
@@ -932,6 +931,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
 
     const newItem = {
       ...updatedProduct,
+      productId: p._id,
       id: `${!hasVariants || p.variants.length === 0
         ? p._id
         : p._id +

@@ -50,7 +50,7 @@ const useCheckoutSubmit = (storeSetting) => {
   const isRemovingCouponRef = useRef(false);
   const [Razorpay] = useRazorpay();
   const { isEmpty, emptyCart, items, cartTotal, removeItem } = useCart();
-  const { clearCartWithDB } = useCartDB();
+  const { clearCartWithDB, removeItemWithDB } = useCartDB();
 
   const userInfo = getUserSession();
   const { showDateFormat, currency, globalSetting } = useUtilsFunction();
@@ -273,10 +273,10 @@ const useCheckoutSubmit = (storeSetting) => {
       } catch (error) {
         const errorData = error?.response?.data;
         if (errorData?.outOfStockItems) {
-          errorData.outOfStockItems.forEach((item) => {
-            removeItem(item.id || item._id);
+          for (const item of errorData.outOfStockItems) {
+            await removeItemWithDB(item.id || item._id);
             notifyError(`${item.title || "Item"} is out of stock and removed from cart.`);
-          });
+          }
           setIsCheckoutSubmit(false);
           toggleCartDrawer();
           return;
@@ -334,10 +334,10 @@ const useCheckoutSubmit = (storeSetting) => {
       console.log("Error Data from Server (Submit):", errorData);
 
       if (errorData?.outOfStockItems) {
-        errorData.outOfStockItems.forEach((item) => {
-          removeItem(item.id || item._id);
+        for (const item of errorData.outOfStockItems) {
+          await removeItemWithDB(item.id || item._id);
           notifyError(`${item.title} is out of stock and removed from cart.`);
-        });
+        }
         setIsCheckoutSubmit(false);
         toggleCartDrawer();
         return;
@@ -598,10 +598,10 @@ const useCheckoutSubmit = (storeSetting) => {
             console.log("Error Data from Server (Save Order):", errorData);
 
             if (errorData?.outOfStockItems) {
-              errorData.outOfStockItems.forEach((item) => {
-                removeItem(item.id || item._id);
+              for (const item of errorData.outOfStockItems) {
+                await removeItemWithDB(item.id || item._id);
                 notifyError(`${item.title} is out of stock and removed from cart.`);
-              });
+              }
               setIsCheckoutSubmit(false);
               toggleCartDrawer();
               return;
@@ -642,10 +642,10 @@ const useCheckoutSubmit = (storeSetting) => {
       console.log("Error Data from Server:", errorData);
 
       if (errorData?.outOfStockItems) {
-        errorData.outOfStockItems.forEach((item) => {
-          removeItem(item.id || item._id);
+        for (const item of errorData.outOfStockItems) {
+          await removeItemWithDB(item.id || item._id);
           notifyError(`${item.title} is out of stock and removed from cart.`);
-        });
+        }
         setIsCheckoutSubmit(false);
         toggleCartDrawer();
         return;

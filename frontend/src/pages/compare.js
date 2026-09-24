@@ -4,11 +4,11 @@ import Image from "next/image";
 import Link from "next/link";
 import { useRouter } from "next/router";
 import { FiX, FiShoppingCart, FiTrash2 } from "react-icons/fi";
-import { useCart } from "react-use-cart";
 import useTranslation from "next-translate/useTranslation";
 
 //internal import
 import Layout from "@layout/Layout";
+import useCartDB from "@hooks/useCartDB";
 import useGetSetting from "@hooks/useGetSetting";
 import useUtilsFunction from "@hooks/useUtilsFunction";
 import AttributeServices from "@services/AttributeServices";
@@ -20,7 +20,7 @@ import Stock from "@components/common/Stock";
 const Compare = ({ attributes }) => {
   const { t } = useTranslation();
   const router = useRouter();
-  const { addItem } = useCart();
+  const { addItemWithDB } = useCartDB();
   const { storeCustomizationSetting, globalSetting } = useGetSetting();
   const { showingTranslateValue } = useUtilsFunction();
   const { state } = useContext(UserContext) || {};
@@ -68,7 +68,7 @@ const Compare = ({ attributes }) => {
     notifySuccess("Compare list cleared");
   };
 
-  const addToCart = (product) => {
+  const addToCart = async (product) => {
     if (product.stock < 1) {
       notifyError("Insufficient stock!");
       return;
@@ -88,14 +88,18 @@ const Compare = ({ attributes }) => {
       ...updatedProduct,
       title: showingTranslateValue(product?.title),
       id: product._id,
+      productId: product._id,
       variant: product.prices,
       price: priceToUse,
       originalPrice: product.prices?.originalPrice,
+      image: product.image?.[0] || product.images?.[0],
     };
 
     const minQty = isWholesaler && product?.minQuantity ? Number(product.minQuantity) : 1;
-    addItem(newItem, minQty);
-    notifySuccess("Product added to cart");
+    const res = await addItemWithDB(newItem, minQty);
+    if (res?.success) {
+      notifySuccess("Product added to cart");
+    }
   };
 
   if (loading) {

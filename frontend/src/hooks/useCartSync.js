@@ -1,22 +1,29 @@
-import { useEffect, useRef, useContext } from "react";
+import { useEffect, useRef, useContext, useCallback } from "react";
 import { useCart } from "react-use-cart";
 import { UserContext } from "@context/UserContext";
 import CustomerServices from "@services/CustomerServices";
+import {
+  normalizeServerCart,
+  setLastConfirmedServerCart,
+  resetCartMutationState,
+  hasActiveCartMutations,
+  getCartEpoch,
+} from "@hooks/useCartDB";
 
 /**
  * useCartSync
  *
- * Synchronizes cart state deterministically across authentication boundaries:
- *  1. Waits until authentication is fully resolved (authStatus !== "loading").
- *  2. If guest items were added prior to login, migrates them to the authenticated
- *     user's backend cart exactly once, and removes the guest storage key.
- *  3. Fetches the authoritative backend cart from MongoDB.
- *  4. Idempotently reconciles the local cart state with exact backend quantities,
- *     preventing duplicate additions or accumulative count errors.
- *  5. Protects against race conditions and late responses during account switches/logout.
+ * Deterministically synchronizes the authenticated user's cart from MongoDB (SSOT):
+ *  1. Initial Hydration: Additively migrates guest items ($Q_{server} + Q_{guest}$) and hydrates server cart.
+ *  2. Focus & Visibility Sync: Automatically reconciles server cart when tab is focused or becomes visible.
+ *  3. Cross-Tab Sync: Receives BroadcastChannel / storage invalidation signals from other tabs to reconcile state.
+ *  4. Duplicate & Cooldown Guard: Prevents overlapping or redundant GET requests from rapid browser events.
+ *  5. Active Mutation Supremacy: Never overwrites active debounced or in-flight user mutations with stale server state.
+ *  6. Session & Logout Guard: Rejects in-flight sync responses across logout or account switch boundaries.
+ *  7. Network Failure Resiliency: Preserves valid local state on network/server error without emptying cart.
  */
 const useCartSync = () => {
-  const { addItem, items, updateItemQuantity, removeItem, getItem } = useCart();
+  const { setItems, items } = useCart();
   const userContext = useContext(UserContext);
   const userInfo = userContext?.userInfo || userContext?.state?.userInfo;
   const authStatus = userContext?.authStatus || userContext?.state?.authStatus || "loading";
@@ -24,44 +31,69 @@ const useCartSync = () => {
   const isSyncedRef = useRef(false);
   const lastUserIdRef = useRef(null);
   const isSyncingRef = useRef(false);
+  const lastSyncTimeRef = useRef(0);
+  const itemsRef = useRef(items);
+  itemsRef.current = items;
+  const userInfoRef = useRef(userInfo);
+  userInfoRef.current = userInfo;
+  const authStatusRef = useRef(authStatus);
+  authStatusRef.current = authStatus;
 
-  useEffect(() => {
-    // 1. Wait until authentication status has resolved
-    if (authStatus === "loading") {
-      return;
-    }
+  /**
+   * Helper to extract clean product ID from item object or composite string.
+   */
+  const resolveDbId = useCallback((itemOrId) => {
+    const rawId =
+      typeof itemOrId === "string"
+        ? itemOrId
+        : itemOrId?._id || itemOrId?.productId || itemOrId?.id || null;
+    if (!rawId) return null;
+    const dashIdx = String(rawId).indexOf("-");
+    return dashIdx !== -1 ? String(rawId).slice(0, dashIdx) : String(rawId);
+  }, []);
 
-    const userId = userInfo?._id || userInfo?.id || null;
+  /**
+   * Core backend cart synchronization method.
+   * @param {boolean} isInitial - true if running initial login/hydration flow with guest migration.
+   */
+  const syncBackendCart = useCallback(
+    async (isInitial = false) => {
+      const activeUser = userInfoRef.current;
+      const currentAuthStatus = authStatusRef.current;
+      const currentSyncUserId = activeUser?._id || activeUser?.id || null;
 
-    // 2. Reset sync state when unauthenticated or logged out
-    if (!userId || authStatus !== "authenticated") {
-      isSyncedRef.current = false;
-      lastUserIdRef.current = null;
-      isSyncingRef.current = false;
-      return;
-    }
+      // 1. Must be authenticated
+      if (!currentSyncUserId || currentAuthStatus !== "authenticated") {
+        return;
+      }
 
-    // Allow re-sync if the authenticated user has changed
-    if (lastUserIdRef.current !== userId) {
-      isSyncedRef.current = false;
-    }
+      // 2. Prevent overlapping / duplicate in-flight synchronization requests
+      if (isSyncingRef.current) {
+        return;
+      }
 
-    // 3. Skip if already synced for this user or currently syncing
-    if (isSyncedRef.current || isSyncingRef.current) {
-      return;
-    }
+      // 3. For event-triggered syncs (focus/visibility/cross-tab):
+      if (!isInitial) {
+        // Skip if active local mutations are currently debouncing or in-flight on this tab
+        if (hasActiveCartMutations()) {
+          return;
+        }
+        // Cooldown guard: skip if a sync succeeded less than 1000ms ago
+        if (Date.now() - lastSyncTimeRef.current < 1000) {
+          return;
+        }
+      }
 
-    isSyncingRef.current = true;
-    const currentSyncUserId = userId;
+      isSyncingRef.current = true;
+      const requestEpoch = getCartEpoch();
 
-    const syncBackendCart = async () => {
       try {
         const isWholesalerUser =
-          userInfo?.role &&
-          String(userInfo.role).toLowerCase() === "wholesaler";
+          activeUser?.role &&
+          String(activeUser.role).toLowerCase() === "wholesaler";
 
-        // ── Step 1: Migrate Guest Items (Single-Path Migration) ─────────────
-        if (typeof window !== "undefined") {
+        // ── Step A: Additive Guest Items Migration (Initial Hydration only) ──
+        if (isInitial && typeof window !== "undefined") {
           try {
             const guestStorage = localStorage.getItem("react-use-cart-guest");
             if (guestStorage) {
@@ -69,33 +101,50 @@ const useCartSync = () => {
               const guestItems = Array.isArray(parsedGuest?.items) ? parsedGuest.items : [];
 
               if (guestItems.length > 0) {
-                // Fetch existing backend cart first to check if items already exist
-                const initialRes = await CustomerServices.getCustomerById(currentSyncUserId);
-                const existingDbProductIds = new Set(
-                  (initialRes?.cart || [])
-                    .map((c) => c.productId?._id?.toString() || c.productId?.toString())
-                    .filter(Boolean)
-                );
+                let existingCartRes;
+                try {
+                  existingCartRes = await CustomerServices.getCart(currentSyncUserId);
+                } catch (e) {
+                  existingCartRes = await CustomerServices.getCustomerById(currentSyncUserId);
+                }
 
-                // Add only guest items that do not already exist in the backend cart
+                const backendCartList = existingCartRes?.cart || [];
+                const backendQtyMap = new Map();
+
+                backendCartList.forEach((c) => {
+                  const pId = c.productId?._id?.toString() || c.productId?.toString();
+                  if (pId) {
+                    backendQtyMap.set(pId, Number(c.quantity) || 1);
+                  }
+                });
+
                 for (const gItem of guestItems) {
                   if (!gItem || !gItem.id) continue;
-                  const rawId = String(gItem.id);
-                  const baseId = rawId.includes("-") ? rawId.slice(0, rawId.indexOf("-")) : rawId;
-                  const quantity = Number(gItem.quantity) || 1;
+                  const baseId = resolveDbId(gItem);
+                  if (!baseId) continue;
+                  const guestQty = Math.max(1, Number(gItem.quantity) || 1);
 
-                  if (!existingDbProductIds.has(baseId)) {
+                  if (backendQtyMap.has(baseId)) {
+                    const currentBackendQty = backendQtyMap.get(baseId);
+                    const mergedQty = currentBackendQty + guestQty;
                     try {
-                      await CustomerServices.addToCartDB(currentSyncUserId, baseId, quantity);
-                      existingDbProductIds.add(baseId);
-                    } catch (dbErr) {
-                      console.error("[useCartSync] Failed to add guest item to backend:", dbErr);
+                      await CustomerServices.updateCartItemDB(currentSyncUserId, baseId, mergedQty);
+                      backendQtyMap.set(baseId, mergedQty);
+                    } catch (updateErr) {
+                      console.error("[useCartSync] Failed to merge guest quantity:", updateErr);
+                    }
+                  } else {
+                    try {
+                      await CustomerServices.addToCartDB(currentSyncUserId, baseId, guestQty);
+                      backendQtyMap.set(baseId, guestQty);
+                    } catch (addErr) {
+                      console.error("[useCartSync] Failed to add guest item to backend:", addErr);
                     }
                   }
                 }
               }
 
-              // Clear guest cart storage immediately after migration
+              // Clear guest cart storage only after migration finishes
               localStorage.removeItem("react-use-cart-guest");
             }
           } catch (guestErr) {
@@ -103,94 +152,146 @@ const useCartSync = () => {
           }
         }
 
-        // Concurrency Check: Ensure user has not changed during migration
-        const activeUserIdAfterMigration = userInfo?._id || userInfo?.id;
-        if (activeUserIdAfterMigration !== currentSyncUserId) {
+        // Concurrency Check 1: Verify user hasn't changed or logged out
+        const activeUserIdDuring = userInfoRef.current?._id || userInfoRef.current?.id;
+        if (activeUserIdDuring !== currentSyncUserId || authStatusRef.current !== "authenticated") {
           return;
         }
 
-        // ── Step 2: Fetch Authoritative Populated Backend Cart ──────────────
-        const res = await CustomerServices.getCustomerById(currentSyncUserId);
+        // ── Step B: Fetch Authoritative Populated Backend Cart ──────────────
+        let res;
+        try {
+          res = await CustomerServices.getCart(currentSyncUserId);
+        } catch (e) {
+          res = await CustomerServices.getCustomerById(currentSyncUserId);
+        }
 
-        // Concurrency Check: Discard late response if user switched or logged out
-        const activeUserId = userInfo?._id || userInfo?.id;
-        if (activeUserId !== currentSyncUserId) {
-          return;
+        // Concurrency Check 2: Verify active session, unchanged epoch, and no intervening local mutations
+        const activeUserIdAfter = userInfoRef.current?._id || userInfoRef.current?.id;
+        if (
+          activeUserIdAfter !== currentSyncUserId ||
+          authStatusRef.current !== "authenticated" ||
+          getCartEpoch() !== requestEpoch ||
+          hasActiveCartMutations()
+        ) {
+          return; // Discard stale sync response if user switched, logged out, or started a local mutation
         }
 
         const backendCart = res?.cart || [];
 
-        // ── Step 3: Build Exact Backend Item Map ────────────────────────────
-        const backendItemMap = new Map();
-        backendCart.forEach((cartItem) => {
-          const product = cartItem.productId;
-          if (!product || !product._id) return;
+        // ── Step C: Normalize and Atomically Hydrate Client Store ───────────
+        const normalized = normalizeServerCart(backendCart, isWholesalerUser, itemsRef.current);
+        setLastConfirmedServerCart(normalized);
+        setItems(normalized);
 
-          const id = String(product._id);
-          const backendQty = Math.max(1, Number(cartItem.quantity) || 1);
-
-          const effectivePrice =
-            isWholesalerUser &&
-            product.wholePrice &&
-            Number(product.wholePrice) > 0
-              ? Number(product.wholePrice)
-              : product.prices?.price || product.prices?.originalPrice || product.price || 0;
-
-          backendItemMap.set(id, {
-            id,
-            price: effectivePrice,
-            title: product.title?.en || product.title || "Product",
-            image: Array.isArray(product.image)
-              ? product.image[0]
-              : typeof product.image === "string"
-                ? product.image
-                : "",
-            quantity: backendQty,
-            slug: product.slug,
-            stock:
-              product?.stock !== undefined
-                ? product.stock
-                : product?.variants && product.variants[0]
-                  ? product.variants[0].quantity
-                  : undefined,
-            minQuantity: product?.minQuantity,
-          });
-        });
-
-        // ── Step 4: Idempotently Reconcile Local Cart State ─────────────────
-        // A. Remove any local items not present in the backend cart
-        items.forEach((localItem) => {
-          const rawId = String(localItem.id);
-          const baseId = rawId.includes("-") ? rawId.slice(0, rawId.indexOf("-")) : rawId;
-          if (!backendItemMap.has(baseId) && !backendItemMap.has(rawId)) {
-            removeItem(localItem.id);
-          }
-        });
-
-        // B. Reconcile backend items into local cart with exact quantities
-        backendItemMap.forEach((data, id) => {
-          const existing = getItem(id);
-          if (existing) {
-            if (existing.quantity !== data.quantity) {
-              updateItemQuantity(id, data.quantity);
-            }
-          } else {
-            addItem(data, data.quantity);
-          }
-        });
-
-        // ── Step 5: Mark Sync Complete for Current User ─────────────────────
+        // ── Step D: Mark Sync Complete & Update Cooldown Timestamp ──────────
+        lastSyncTimeRef.current = Date.now();
         isSyncedRef.current = true;
         lastUserIdRef.current = currentSyncUserId;
       } catch (err) {
-        console.error("[useCartSync] Error syncing cart:", err);
+        console.warn("[useCartSync] Error syncing cart (preserving local state):", err?.message || err);
       } finally {
         isSyncingRef.current = false;
       }
+    },
+    [resolveDbId, setItems]
+  );
+
+  // ── Effect 1: Initial Hydration on Authentication / Account Switch ─────────
+  useEffect(() => {
+    if (authStatus === "loading") {
+      return;
+    }
+
+    const userId = userInfo?._id || userInfo?.id || null;
+
+    if (!userId || authStatus !== "authenticated") {
+      isSyncedRef.current = false;
+      lastUserIdRef.current = null;
+      isSyncingRef.current = false;
+      resetCartMutationState();
+      return;
+    }
+
+    if (lastUserIdRef.current !== userId) {
+      isSyncedRef.current = false;
+    }
+
+    if (isSyncedRef.current || isSyncingRef.current) {
+      return;
+    }
+
+    syncBackendCart(true);
+  }, [userInfo?._id, userInfo?.id, authStatus, syncBackendCart]);
+
+  // ── Effect 2: Focus, Visibility & Cross-Tab Invalidation Listeners ──────────
+  useEffect(() => {
+    const userId = userInfo?._id || userInfo?.id || null;
+    if (!userId || authStatus !== "authenticated") {
+      return;
+    }
+
+    // A. Focus event handler
+    const handleFocus = () => {
+      if (typeof document !== "undefined" && !document.hidden) {
+        syncBackendCart(false);
+      }
     };
 
-    syncBackendCart();
-  }, [userInfo?._id, userInfo?.id, authStatus]);
+    // B. Visibility change event handler
+    const handleVisibilityChange = () => {
+      if (typeof document !== "undefined" && document.visibilityState === "visible") {
+        syncBackendCart(false);
+      }
+    };
+
+    // C. Cross-tab BroadcastChannel listener
+    let channel = null;
+    if (typeof window !== "undefined" && typeof BroadcastChannel !== "undefined") {
+      try {
+        channel = new BroadcastChannel("farmacykart_cart_sync");
+        channel.onmessage = (event) => {
+          if (
+            event.data?.type === "CART_MUTATED" &&
+            String(event.data?.customerId) === String(userId)
+          ) {
+            syncBackendCart(false);
+          }
+        };
+      } catch (e) {
+        // Fallback to storage listener below
+      }
+    }
+
+    // D. Cross-tab storage event listener fallback
+    const handleStorage = (e) => {
+      if (e.key === "farmacykart_cart_sync_signal" && e.newValue) {
+        if (e.newValue.startsWith(`${userId}_`)) {
+          syncBackendCart(false);
+        }
+      }
+    };
+
+    if (typeof window !== "undefined") {
+      window.addEventListener("focus", handleFocus);
+      document.addEventListener("visibilitychange", handleVisibilityChange);
+      window.addEventListener("storage", handleStorage);
+    }
+
+    return () => {
+      if (typeof window !== "undefined") {
+        window.removeEventListener("focus", handleFocus);
+        document.removeEventListener("visibilitychange", handleVisibilityChange);
+        window.removeEventListener("storage", handleStorage);
+      }
+      if (channel) {
+        try {
+          channel.close();
+        } catch (e) { }
+      }
+    };
+  }, [userInfo?._id, userInfo?.id, authStatus, syncBackendCart]);
 };
 
 export default useCartSync;
+

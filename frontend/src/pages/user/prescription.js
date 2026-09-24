@@ -1,6 +1,5 @@
 import React, { useContext, useState } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useCart } from "react-use-cart";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import Link from "next/link";
 import Image from "next/image";
 import { FiTrash2, FiShoppingCart } from "react-icons/fi";
@@ -9,6 +8,7 @@ import { FiTrash2, FiShoppingCart } from "react-icons/fi";
 import Dashboard from "@pages/user/dashboard";
 import CustomerServices from "@services/CustomerServices";
 import { UserContext } from "@context/UserContext";
+import useCartDB from "@hooks/useCartDB";
 import Loading from "@components/preloader/Loading";
 import { notifySuccess, notifyError } from "@utils/toast";
 import useUtilsFunction from "@hooks/useUtilsFunction";
@@ -19,7 +19,7 @@ const Prescription = () => {
     state: { userInfo },
   } = useContext(UserContext);
   const isWholesaler = userInfo?.role && String(userInfo.role).toLowerCase() === 'wholesaler';
-  const { removeItem } = useCart();
+  const { removeItemWithDB } = useCartDB();
   const queryClient = useQueryClient();
   const { showingTranslateValue, currency, getNumberTwo } = useUtilsFunction();
 
@@ -29,32 +29,16 @@ const Prescription = () => {
     enabled: !!userInfo?._id,
   });
 
-  const updateCustomerMutation = useMutation({
-    mutationFn: (data) => CustomerServices.updateCustomer(userInfo?._id, data),
-    onSuccess: (data) => {
-      notifySuccess("Item removed from cart successfully!");
-      queryClient.invalidateQueries(["customer", userInfo?._id]);
-    },
-    onError: (err) => {
-      notifyError(err?.response?.data?.message || "Something went wrong!");
-    },
-  });
-
   const handleRemoveItem = async (productId) => {
-    if (!customer?.cart) return;
-
-    // Defensive: only consider cart entries with a populated productId and valid _id
-    const updatedCart = customer.cart
-      .filter((item) => item.productId && item.productId._id && item.productId._id !== productId)
-      .map((item) => ({
-        productId: item.productId._id,
-        quantity: item.quantity,
-      }));
-
-    // Remove from local cart as well
-    removeItem(productId);
-
-    updateCustomerMutation.mutate({ cart: updatedCart });
+    try {
+      const res = await removeItemWithDB(productId);
+      if (res?.success) {
+        notifySuccess("Item removed from cart successfully!");
+        queryClient.invalidateQueries(["customer", userInfo?._id]);
+      }
+    } catch (err) {
+      notifyError(err?.response?.data?.message || "Failed to remove item");
+    }
   };
 
   return (
