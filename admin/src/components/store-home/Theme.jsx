@@ -56,16 +56,16 @@ const swatches = [
   { token: "amber", hex: "#F59E0B" },
   { token: "red", hex: "#EF4444" },
   { token: "rose", hex: "#F43F5E" },
-  { token: "store", hex: "#EC4899" },
+  { token: "store", hex: "#16A34A" },
   { token: "fuchsia", hex: "#D946EF" },
   { token: "lime", hex: "#84CC16" },
   { token: "yellow", hex: "#EAB308" },
 ];
 
 const Theme = ({ register, isSubmitting, defaultColor, setValue }) => {
-  const initialToken = useMemo(() => (defaultColor ? defaultColor : "store"), [defaultColor]);
+  const initialToken = useMemo(() => (defaultColor ? defaultColor : "green"), [defaultColor]);
   const [selected, setSelected] = useState(initialToken);
-  const [customColor, setCustomColor] = useState(initialToken.startsWith("#") ? initialToken : "#EC4899");
+  const [customColor, setCustomColor] = useState(initialToken.startsWith("#") ? initialToken : "#16A34A");
   const [showGradientBox, setShowGradientBox] = useState(false);
 
   useEffect(() => {

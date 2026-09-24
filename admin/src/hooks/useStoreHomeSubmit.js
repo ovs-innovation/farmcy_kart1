@@ -1188,7 +1188,7 @@ const useStoreHomeSubmit = () => {
             }),
           },
           theme: {
-            color: data?.theme_color || themeColor || "store",
+            color: data?.theme_color || themeColor || "green",
           },
           seo: {
             //for seo
@@ -1254,7 +1254,7 @@ const useStoreHomeSubmit = () => {
         if (res) {
           setIsSave(false);
           setResData(res);
-          setThemeColor(res?.theme?.color || "pink");
+          setThemeColor(res?.theme?.color || "green");
 
           //navbar
 
@@ -1288,7 +1288,7 @@ const useStoreHomeSubmit = () => {
           setValue("checkout", res?.navbar?.checkout[language || "en"]);
           setHeaderLogo(res?.navbar?.logo);
           setValue("phone_number", res?.navbar?.phone);
-          setValue("theme_color", res?.theme?.color || "pink");
+          setValue("theme_color", res?.theme?.color || "green");
 
           //home
 

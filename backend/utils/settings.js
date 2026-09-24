@@ -919,6 +919,9 @@ const setting = [
           "Farmacykart - React Grocery & Organic Food Store e-commerce Template",
         meta_url: "https://Farmacykart-store-nine.vercel.app/",
       },
+      theme: {
+        color: "green",
+      },
     },
     name: "storeCustomizationSetting",
   },

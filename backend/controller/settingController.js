@@ -235,6 +235,16 @@ const getStoreCustomizationSetting = async (req, res) => {
     if (setting.footer) {
       setting.footer.block4_logo = logoUrl;
     }
+    if (
+      !setting.theme ||
+      !setting.theme.color ||
+      setting.theme.color === "pink" ||
+      setting.theme.color === "#EC4899" ||
+      setting.theme.color === "#ec4899" ||
+      setting.theme.color === "store"
+    ) {
+      setting.theme = { ...(setting.theme || {}), color: "green" };
+    }
 
     res.send(setting);
   } catch (err) {

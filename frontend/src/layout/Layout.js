@@ -18,7 +18,11 @@ import { pickBrandLogo } from "@utils/brandAssets";
 
 const Layout = ({ title, description, children, hideMobileHeader }) => {
   const { storeCustomizationSetting, globalSetting } = useGetSetting();
-  const storeColor = storeCustomizationSetting?.theme?.color || "green";
+  const rawColor = storeCustomizationSetting?.theme?.color;
+  const storeColor =
+    !rawColor || rawColor === "pink" || rawColor === "#EC4899" || rawColor === "#ec4899"
+      ? "green"
+      : rawColor;
   const palette = getPalette(storeColor);
 
   // Sync prescription medicines to cart

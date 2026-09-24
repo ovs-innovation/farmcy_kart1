@@ -28,7 +28,7 @@ const Layout = () => {
     const fetchTheme = async () => {
       try {
         const res = await SettingServices.getStoreSetting();
-        const themeColor = res?.theme_color || "store";
+        const themeColor = res?.theme_color || "green";
         const palette = getPalette(themeColor);
 
         const root = document.documentElement;

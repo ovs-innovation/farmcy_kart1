@@ -36,6 +36,9 @@ settingSchema.post("init", function(doc) {
       if (doc.setting.footer) {
         doc.setting.footer.block4_logo = "/logo/logo.png";
       }
+      if (!doc.setting.theme || !doc.setting.theme.color || doc.setting.theme.color === "pink" || doc.setting.theme.color === "#EC4899" || doc.setting.theme.color === "#ec4899") {
+        doc.setting.theme = { ...(doc.setting.theme || {}), color: "green" };
+      }
     }
   }
 });
