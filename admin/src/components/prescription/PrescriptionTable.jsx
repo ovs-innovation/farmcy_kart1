@@ -1,6 +1,6 @@
 import { TableBody, TableCell, TableRow, Badge } from "@windmill/react-ui";
 import { useTranslation } from "react-i18next";
-import { FiZoomIn, FiTrash2 } from "react-icons/fi";
+import { FiFileText, FiTrash2 } from "react-icons/fi";
 import { Link } from "react-router-dom";
 import Tooltip from "@/components/tooltip/Tooltip";
 import useUtilsFunction from "@/hooks/useUtilsFunction";
@@ -12,7 +12,7 @@ const PrescriptionTable = ({ prescriptions, handleDelete }) => {
   return (
     <TableBody className="dark:bg-gray-900">
       {prescriptions?.map((prescription, i) => (
-        <TableRow key={i + 1}>
+        <TableRow key={prescription?._id || i + 1}>
           <TableCell>
             <span className="font-semibold uppercase text-xs">
               {prescription?._id ? prescription._id.substring(prescription._id.length - 4).toUpperCase() : ""}
@@ -57,26 +57,29 @@ const PrescriptionTable = ({ prescriptions, handleDelete }) => {
             <div className="flex justify-end text-right gap-2">
               <Link
                 to={`/prescriptions/${prescription._id}`}
-                className="p-2 cursor-pointer text-gray-400 hover:text-green-600 focus:outline-none"
+                className="p-2 cursor-pointer text-gray-400 hover:text-emerald-600 dark:hover:text-emerald-400 transition-colors duration-150 focus:outline-none"
+                aria-label={t("ViewPrescription", "View Prescription")}
               >
                 <Tooltip
-                  id="view"
-                  Icon={FiZoomIn}
-                  title={t("View")}
-                  bgColor="#34D399"
+                  id={`view-${prescription._id || i}`}
+                  Icon={FiFileText}
+                  title={t("ViewPrescription", "View Prescription")}
+                  bgColor="#10B981"
                 />
               </Link>
-              <div
+              <button
+                type="button"
                 onClick={() => handleDelete(prescription._id)}
-                className="p-2 cursor-pointer text-gray-400 hover:text-red-600 focus:outline-none"
+                className="p-2 cursor-pointer text-gray-400 hover:text-red-600 dark:hover:text-red-400 transition-colors duration-150 focus:outline-none bg-transparent border-0"
+                aria-label={t("Delete")}
               >
                 <Tooltip
-                  id="delete"
+                  id={`delete-${prescription._id || i}`}
                   Icon={FiTrash2}
                   title={t("Delete")}
                   bgColor="#EF4444"
                 />
-              </div>
+              </button>
             </div>
           </TableCell>
         </TableRow>
