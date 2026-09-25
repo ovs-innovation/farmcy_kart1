@@ -126,6 +126,13 @@ const Checkout = () => {
     isEmpty,
     items,
     cartTotal,
+    selectedItemIds,
+    selectedItems,
+    selectedCartTotal,
+    toggleSelectItem,
+    selectAllItems,
+    deselectAllItems,
+    isItemSelected,
     register,
     errors,
     watch,
@@ -170,23 +177,23 @@ const Checkout = () => {
     }
   }, [selectedAddress, setValue, userInfo]);
 
-  // Calculate totals for order summary
+  // Calculate totals for order summary based on selected items
   const calculateTotals = () => {
     // For wholesalers, no discount calculation - only show subtotal
     if (isWholesaler) {
       return {
         totalMRP: 0,
         totalDiscount: 0,
-        subtotal: cartTotal,
+        subtotal: selectedCartTotal,
         taxAmount: taxSummary?.exclusiveTax || 0,
-        total: parseFloat(total),
+        total: parseFloat(total || 0),
       };
     }
 
     let totalMRP = 0;
     let totalDiscount = 0;
 
-    items.forEach((item) => {
+    selectedItems.forEach((item) => {
       const originalPrice =
         item.originalPrice ||
         item.mrp ||
@@ -202,9 +209,9 @@ const Checkout = () => {
     return {
       totalMRP,
       totalDiscount,
-      subtotal: cartTotal,
+      subtotal: selectedCartTotal,
       taxAmount: taxSummary?.exclusiveTax || 0,
-      total: parseFloat(total),
+      total: parseFloat(total || 0),
     };
   };
 
@@ -780,9 +787,36 @@ const Checkout = () => {
 
                   {/* Cart Items Section */}
                   <div className="form-group mt-8 sm:mt-12 max-h-[420px] sm:max-h-[500px] overflow-y-auto scrollbar-hide">
-                    <h2 className="font-semibold font-serif text-base text-gray-700 pb-3">
-                      Order Items
-                    </h2>
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 gap-2">
+                      <div className="flex items-center gap-2">
+                        <h2 className="font-semibold font-serif text-base text-gray-700">
+                          Order Items
+                        </h2>
+                        {items.length > 0 && (
+                          <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-gray-600">
+                            {selectedItems.length} of {items.length} selected
+                          </span>
+                        )}
+                      </div>
+
+                      {items.length > 0 && (
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={
+                              selectedItems.length === items.length
+                                ? deselectAllItems
+                                : selectAllItems
+                            }
+                            className="text-xs font-bold text-store-600 hover:text-store-700 hover:underline transition-colors cursor-pointer"
+                          >
+                            {selectedItems.length === items.length
+                              ? "Deselect All"
+                              : "Select All"}
+                          </button>
+                        </div>
+                      )}
+                    </div>
 
                     <div className="space-y-2">
                       {items.map((item) => (
@@ -790,6 +824,9 @@ const Checkout = () => {
                           key={item.id}
                           item={item}
                           currency={currency}
+                          showCheckbox={true}
+                          isSelected={isItemSelected(item.id)}
+                          onToggleSelect={() => toggleSelectItem(item.id)}
                         />
                       ))}
 
@@ -1206,6 +1243,12 @@ const Checkout = () => {
                     type="button"
                     onClick={(e) => {
                       e.preventDefault();
+                      if (selectedItems.length === 0) {
+                        notifyError(
+                          "Please select at least one item to proceed with checkout.",
+                        );
+                        return;
+                      }
                       if (!agreeToTerms) {
                         notifyError(
                           "Please agree to Terms & Conditions to place order",
@@ -1223,9 +1266,17 @@ const Checkout = () => {
                         formRef.current.requestSubmit();
                       }
                     }}
-                    disabled={isEmpty || isCheckoutSubmit || !agreeToTerms}
+                    disabled={
+                      isEmpty ||
+                      selectedItems.length === 0 ||
+                      isCheckoutSubmit ||
+                      !agreeToTerms
+                    }
                     className={`w-full py-4 rounded-lg text-base font-semibold text-white transition-all ${
-                      isEmpty || isCheckoutSubmit || !agreeToTerms
+                      isEmpty ||
+                      selectedItems.length === 0 ||
+                      isCheckoutSubmit ||
+                      !agreeToTerms
                         ? "bg-gray-400 cursor-not-allowed"
                         : "bg-store-500 hover:bg-store-600 shadow-md hover:shadow-lg"
                     }`}

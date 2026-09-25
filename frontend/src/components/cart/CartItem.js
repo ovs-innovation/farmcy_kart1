@@ -11,7 +11,13 @@ import { SidebarContext } from "@context/SidebarContext";
 import { UserContext } from "@context/UserContext";
 import { notifyError } from "@utils/toast";
 
-const CartItem = ({ item, currency = "₹" }) => {
+const CartItem = ({
+  item,
+  currency = "₹",
+  showCheckbox = false,
+  isSelected = false,
+  onToggleSelect = () => {},
+}) => {
   const { closeCartDrawer } = useContext(SidebarContext);
   const { handleIncreaseQuantity } = useAddToCart();
   const { updateQuantityWithDB, removeItemWithDB } = useCartDB();
@@ -54,7 +60,27 @@ const CartItem = ({ item, currency = "₹" }) => {
   };
 
   return (
-    <div className="group w-full h-auto flex justify-start items-start bg-white py-4 px-4 mb-3 rounded-xl border border-gray-200 hover:border-emerald-300 shadow-md hover:shadow-xl transition-all duration-300 relative">
+    <div
+      className={`group w-full h-auto flex justify-start items-start bg-white py-4 px-4 mb-3 rounded-xl border ${
+        showCheckbox && isSelected
+          ? "border-store-500 ring-1 ring-store-500/20 bg-store-50/10"
+          : "border-gray-200 hover:border-emerald-300"
+      } shadow-md hover:shadow-xl transition-all duration-300 relative`}
+    >
+      {/* Checkbox for selective checkout */}
+      {showCheckbox && (
+        <div className="flex items-center self-center mr-3 flex-shrink-0">
+          <input
+            type="checkbox"
+            id={`select-cart-item-${item.id}`}
+            checked={isSelected}
+            onChange={onToggleSelect}
+            aria-label={`Select ${item.title}`}
+            className="h-5 w-5 text-store-600 focus:ring-store-500 border-gray-300 rounded cursor-pointer transition-all"
+          />
+        </div>
+      )}
+
       {/* Enhanced Image Container */}
       <div className="relative flex rounded-xl border-2 border-gray-100 shadow-sm hover:shadow-md overflow-hidden flex-shrink-0 cursor-pointer mr-4 transition-all duration-300 group-hover:border-emerald-200 bg-gray-50">
         <Image

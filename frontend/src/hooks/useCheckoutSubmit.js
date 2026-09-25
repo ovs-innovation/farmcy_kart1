@@ -1,7 +1,7 @@
 import Cookies from "js-cookie";
 import dayjs from "dayjs";
 import { useRouter } from "next/router";
-import { useContext, useEffect, useRef, useState } from "react";
+import { useContext, useEffect, useRef, useState, useMemo, useCallback } from "react";
 import { useForm } from "react-hook-form";
 import { useCart } from "react-use-cart";
 import useRazorpay from "react-razorpay";
@@ -44,6 +44,8 @@ const useCheckoutSubmit = (storeSetting) => {
   const [isCouponAvailable, setIsCouponAvailable] = useState(false);
   const [availableCoupons, setAvailableCoupons] = useState([]);
   const [selectedCouponCode, setSelectedCouponCode] = useState("");
+  // Selection state: unchecked by default (empty array)
+  const [selectedItemIds, setSelectedItemIds] = useState([]);
 
   const router = useRouter();
   const couponRef = useRef("");
@@ -51,6 +53,58 @@ const useCheckoutSubmit = (storeSetting) => {
   const [Razorpay] = useRazorpay();
   const { isEmpty, emptyCart, items, cartTotal, removeItem } = useCart();
   const { clearCartWithDB, removeItemWithDB } = useCartDB();
+
+  // Compute selected items directly from items in cart and selectedItemIds
+  const selectedItems = useMemo(() => {
+    if (!items || items.length === 0 || selectedItemIds.length === 0) return [];
+    const idSet = new Set(selectedItemIds.map((id) => String(id)));
+    return items.filter((item) => idSet.has(String(item.id)));
+  }, [items, selectedItemIds]);
+
+  // Compute selected cart total
+  const selectedCartTotal = useMemo(() => {
+    return selectedItems.reduce((acc, item) => {
+      const price = Number(item.price || item.prices?.sale || 0);
+      const qty = Number(item.quantity || 1);
+      return acc + price * qty;
+    }, 0);
+  }, [selectedItems]);
+
+  // Synchronize selectedItemIds when items are deleted from cart
+  useEffect(() => {
+    if (selectedItemIds.length > 0 && items) {
+      const validItemIds = new Set(items.map((i) => String(i.id)));
+      const filtered = selectedItemIds.filter((id) => validItemIds.has(String(id)));
+      if (filtered.length !== selectedItemIds.length) {
+        setSelectedItemIds(filtered);
+      }
+    }
+  }, [items, selectedItemIds]);
+
+  const toggleSelectItem = useCallback((itemId) => {
+    const strId = String(itemId);
+    setSelectedItemIds((prev) => {
+      const exists = prev.some((id) => String(id) === strId);
+      if (exists) {
+        return prev.filter((id) => String(id) !== strId);
+      } else {
+        return [...prev, strId];
+      }
+    });
+  }, []);
+
+  const selectAllItems = useCallback(() => {
+    if (!items || items.length === 0) return;
+    setSelectedItemIds(items.map((item) => String(item.id)));
+  }, [items]);
+
+  const deselectAllItems = useCallback(() => {
+    setSelectedItemIds([]);
+  }, []);
+
+  const isItemSelected = useCallback((itemId) => {
+    return selectedItemIds.some((id) => String(id) === String(itemId));
+  }, [selectedItemIds]);
 
   const userInfo = getUserSession();
   const { showDateFormat, currency, globalSetting } = useUtilsFunction();
@@ -103,9 +157,14 @@ const useCheckoutSubmit = (storeSetting) => {
     }
 
     // Check if coupon should be removed
-    const shouldRemoveCoupon = minimumAmount > 0 && (minimumAmount - discountAmount > total || isEmpty);
-    const hasActiveCoupon = discountPercentage !== 0 &&
-      (typeof discountPercentage === 'object' ? Object.keys(discountPercentage).length > 0 : true);
+    const shouldRemoveCoupon =
+      minimumAmount > 0 &&
+      (minimumAmount - discountAmount > total || selectedItems.length === 0 || isEmpty);
+    const hasActiveCoupon =
+      discountPercentage !== 0 &&
+      (typeof discountPercentage === "object"
+        ? Object.keys(discountPercentage).length > 0
+        : true);
 
     if (shouldRemoveCoupon && hasActiveCoupon) {
       isRemovingCouponRef.current = true;
@@ -113,17 +172,21 @@ const useCheckoutSubmit = (storeSetting) => {
       Cookies.remove("couponInfo");
       setCouponInfo({});
       setMinimumAmount(0);
+      setIsCouponApplied(false);
+      setSelectedCouponCode("");
     }
-  }, [minimumAmount, total, discountAmount, isEmpty, discountPercentage]);
+  }, [minimumAmount, total, discountAmount, selectedItems, isEmpty, discountPercentage]);
 
-  // Load list of coupons applicable for current cart total
+  // Load list of coupons applicable for current selected cart total
   useEffect(() => {
     const loadCoupons = async () => {
       try {
         const coupons = await CouponServices.getShowingCoupons();
         const applicable = (coupons || []).filter((coupon) => {
           const min = Number(coupon.minimumAmount || 0);
-          const notExpired = coupon.endTime ? !dayjs().isAfter(dayjs(coupon.endTime)) : true;
+          const notExpired = coupon.endTime
+            ? !dayjs().isAfter(dayjs(coupon.endTime))
+            : true;
           return notExpired;
         });
         setAvailableCoupons(applicable);
@@ -140,30 +203,30 @@ const useCheckoutSubmit = (storeSetting) => {
       }
     };
 
-    if (!isEmpty) {
+    if (selectedItems.length > 0) {
       loadCoupons();
     } else {
       setAvailableCoupons([]);
       setSelectedCouponCode("");
     }
-  }, [total, isEmpty, selectedCouponCode]);
+  }, [total, selectedItems.length, selectedCouponCode]);
 
-  //calculate total and discount value
-  //calculate total and discount value
+  // Calculate total and discount value based on selected items only
   useEffect(() => {
-    if (!items || items.length === 0) {
+    if (!selectedItems || selectedItems.length === 0) {
       setTaxSummary({ inclusiveTax: 0, exclusiveTax: 0, totalTax: 0 });
       setDiscountAmount(0);
       setTotal(0);
       return;
     }
 
-    const discountProductTotal = items?.reduce(
-      (preValue, currentValue) => preValue + currentValue.itemTotal,
+    const discountProductTotal = selectedItems?.reduce(
+      (preValue, currentValue) =>
+        preValue + (currentValue.itemTotal || currentValue.price * currentValue.quantity),
       0
     );
 
-    const nextTaxSummary = items?.reduce(
+    const nextTaxSummary = selectedItems?.reduce(
       (acc, item) => {
         const rate = Number(item?.taxRate ?? 0);
         const price = Number(item?.price ?? 0);
@@ -188,12 +251,17 @@ const useCheckoutSubmit = (storeSetting) => {
     setTaxSummary(nextTaxSummary);
 
     let totalValue = 0;
+    const effectiveShipping = selectedItems.length > 0 ? Number(shippingCost) : 0;
     const subTotal = parseFloat(
-      cartTotal + Number(shippingCost) + nextTaxSummary.exclusiveTax
+      selectedCartTotal + effectiveShipping + nextTaxSummary.exclusiveTax
     ).toFixed(2);
 
     let calculatedDiscountAmount = 0;
-    if (discountPercentage && typeof discountPercentage === 'object' && discountPercentage.type) {
+    if (
+      discountPercentage &&
+      typeof discountPercentage === "object" &&
+      discountPercentage.type
+    ) {
       calculatedDiscountAmount =
         discountPercentage.type === "fixed"
           ? discountPercentage.value
@@ -205,10 +273,16 @@ const useCheckoutSubmit = (storeSetting) => {
 
     setDiscountAmount(discountAmountTotal);
     setTotal(totalValue);
-  }, [items, cartTotal, shippingCost, discountPercentage]);
+  }, [selectedItems, selectedCartTotal, shippingCost, discountPercentage]);
 
   const submitHandler = async (data) => {
     try {
+      if (!selectedItems || selectedItems.length === 0) {
+        notifyError("Please select at least one item to proceed with checkout.");
+        setIsCheckoutSubmit(false);
+        return;
+      }
+
       // Keep the old checkout flow: take details on checkout itself
       // and (if needed) complete the customer profile in the background.
       if (userInfo?.token && !isProfileComplete(userInfo)) {
@@ -268,7 +342,7 @@ const useCheckoutSubmit = (storeSetting) => {
       // 1. Dedicated stock pre-check route before payment/order submission
       try {
         await OrderServices.checkStock({
-          cart: items,
+          cart: selectedItems,
         });
       } catch (error) {
         const errorData = error?.response?.data;
@@ -291,9 +365,9 @@ const useCheckoutSubmit = (storeSetting) => {
         paymentMethod: normalizedPaymentMethod,
         checkoutRequestId,
         status: "Pending",
-        cart: items,
-        subTotal: cartTotal,
-        shippingCost: shippingCost,
+        cart: selectedItems,
+        subTotal: selectedCartTotal,
+        shippingCost: selectedItems.length > 0 ? shippingCost : 0,
         discount: discountAmount,
         coupon: couponInfo?.couponCode ? {
           couponCode: couponInfo.couponCode,
@@ -315,7 +389,7 @@ const useCheckoutSubmit = (storeSetting) => {
       // Handle payment based on method
       switch (data.paymentMethod) {
         case "RazorPay":
-          await handleCashPayment(orderInfo);
+          await handlePaymentWithRazorpay(orderInfo);
           break;
         case "Cash":
         case "COD":
@@ -397,8 +471,15 @@ const useCheckoutSubmit = (storeSetting) => {
         "Your Order Confirmed! The invoice will be emailed to you shortly."
       );
       Cookies.remove("couponInfo");
-      // Clear local cart AND DB cart
-      await clearCartWithDB();
+      // Remove ordered items from cart (clear all if all items in cart were ordered, otherwise remove ordered items only)
+      const orderedItems = orderInfo?.cart || selectedItems || [];
+      if (orderedItems.length >= items.length) {
+        await clearCartWithDB();
+      } else {
+        for (const ordItem of orderedItems) {
+          await removeItemWithDB(ordItem.id || ordItem._id);
+        }
+      }
       setIsCheckoutSubmit(false);
     } catch (err) {
       console.error("Order success handling error:", err.message);
@@ -618,7 +699,7 @@ const useCheckoutSubmit = (storeSetting) => {
           email: orderInfo?.user_info?.email || "customer@example.com",
           contact: orderInfo?.user_info?.contact || "0000000000",
         },
-        theme: { color: storeSetting?.razorpay_color || "#EC4899" },
+        theme: { color: storeSetting?.razorpay_color || "#16A34A" },
         modal: {
           ondismiss: () => {
             setIsCheckoutSubmit(false);
@@ -781,6 +862,13 @@ const useCheckoutSubmit = (storeSetting) => {
     isEmpty,
     items,
     cartTotal,
+    selectedItemIds,
+    selectedItems,
+    selectedCartTotal,
+    toggleSelectItem,
+    selectAllItems,
+    deselectAllItems,
+    isItemSelected,
     handleSubmit,
     submitHandler,
     handleShippingCost,
