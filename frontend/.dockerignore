@@ -1,0 +1,45 @@
+# Dependency directories
+node_modules
+.pnp
+.pnp.js
+
+# Build and output artifacts
+.next
+out
+build
+dist
+coverage
+
+# Environment and secrets (CRITICAL: Do not copy secrets into the image)
+.env
+.env*.local
+.env.development
+.env.test
+.env.production
+*.pem
+*.key
+
+# Git and IDE metadata
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+.gemini
+
+# Logs and debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Documentation and Docker files
+Dockerfile*
+.dockerignore
+docker-compose*
+*.md

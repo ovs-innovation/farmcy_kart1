@@ -1,0 +1,53 @@
+# Dependency directories
+node_modules
+.pnp
+.pnp.js
+
+# Environment and secrets (CRITICAL: Do not copy secrets into the image)
+.env
+.env*.local
+.env.development
+.env.test
+.env.production
+.env.staging
+*.pem
+*.key
+*.cert
+
+# Git and IDE metadata
+.git
+.gitignore
+.gitattributes
+.idea
+.vscode
+.gemini
+
+# Logs and debug files
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+*.log
+server_error.log
+current_error.txt
+
+# Scratch scripts and test files
+scratch
+scripts
+script
+check_products.js
+e2e_db_check.js
+seedAdmin.js
+test_tax.js
+categories_debug.json
+temp_api_res.json
+
+# Operating system files
+.DS_Store
+Thumbs.db
+
+# Documentation and Docker files
+Dockerfile*
+.dockerignore
+docker-compose*
+*.md

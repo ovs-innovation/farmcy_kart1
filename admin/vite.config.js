@@ -81,7 +81,7 @@ export default defineConfig({
     compression(),
     visualizer({
       filename: "statistics.html",
-      open: true,
+      open: process.env.OPEN_VISUALIZER === "true",
     }),
   ],
 

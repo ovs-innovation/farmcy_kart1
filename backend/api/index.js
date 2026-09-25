@@ -83,29 +83,30 @@ app.set("trust proxy", 1);
 // CORS configuration - allow frontend domain + localhost for dev
 const allowedOrigins = process.env.FRONTEND_URL
   ? [
-      process.env.FRONTEND_URL,
-      process.env.ADMIN_URL,
-      process.env.STORE_URL,
-      "https://admin.farmacykart.com",
-      "https://farmacykart.com",
-      "https://www.farmacykart.com",
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://localhost:4100",
-      "http://127.0.0.1:4100",
-      "http://localhost:5055",
-      "http://127.0.0.1:5055",
-      "exp://192.168.1.6:8081",
-      "exp://192.168.1.6:8082",
-    ].filter(Boolean)
+    process.env.FRONTEND_URL,
+    process.env.ADMIN_URL,
+    process.env.STORE_URL,
+    "https://admin.farmacykart.com",
+    "https://farmacykart.com",
+    "https://www.farmacykart.com",
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4100",
+    "http://127.0.0.1:4100",
+    "http://localhost:5055",
+    "http://127.0.0.1:5055",
+    "exp://192.168.1.6:8081",
+    "exp://192.168.1.6:8082",
+    "http://localhost:5000"
+  ].filter(Boolean)
   : [
-      "http://localhost:3000",
-      "http://127.0.0.1:3000",
-      "http://localhost:4100",
-      "http://127.0.0.1:4100",
-      "http://localhost:5055",
-      "*",
-    ];
+    "http://localhost:3000",
+    "http://127.0.0.1:3000",
+    "http://localhost:4100",
+    "http://127.0.0.1:4100",
+    "http://localhost:5055",
+    "*",
+  ];
 
 const corsOptions = {
   origin: function (origin, callback) {
@@ -217,9 +218,9 @@ server.on("error", (err) => {
   if (err.code === "EADDRINUSE") {
     console.error(
       `\nPort ${PORT} is already in use. Stop the other backend process first:\n` +
-        `  netstat -ano | findstr :${PORT}\n` +
-        `  taskkill /PID <pid> /F\n` +
-        `Then run: npm run dev\n`,
+      `  netstat -ano | findstr :${PORT}\n` +
+      `  taskkill /PID <pid> /F\n` +
+      `Then run: npm run dev\n`,
     );
     process.exit(1);
   }

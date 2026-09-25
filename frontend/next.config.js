@@ -13,6 +13,7 @@ const withPWA = require("next-pwa")({
 
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  output: "standalone",
   reactStrictMode: false,
 
   // 🔴 IMPORTANT (add this)
