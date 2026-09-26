@@ -10,12 +10,7 @@ build
 dist
 coverage
 
-# Environment and secrets (CRITICAL: Do not copy secrets into the image)
-.env
-.env*.local
-.env.development
-.env.test
-.env.production
+# Secrets and certificates (Allow .env in builder for NEXT_PUBLIC_* compilation; runner stage uses multi-stage isolation)
 *.pem
 *.key
 

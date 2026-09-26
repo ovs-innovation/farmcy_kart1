@@ -8,13 +8,7 @@ dist
 build
 coverage
 
-# Environment and secrets (CRITICAL: Do not copy secrets into the image)
-.env
-.env*.local
-.env.development
-.env.test
-.env.production
-.env.staging
+# Secrets and certificates (Allow .env in builder for VITE_APP_* compilation; runner stage uses multi-stage isolation)
 *.pem
 *.key
 *.cert
