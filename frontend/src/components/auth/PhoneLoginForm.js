@@ -117,7 +117,7 @@ const PhoneLoginForm = ({ variant = "login" }) => {
     resetOtpInputs(len);
     setStep("otp");
     startTimer();
-    notifySuccess(response?.message || "OTP sent to your mobile");
+    notifySuccess(response?.message || "Otp sent successfully");
   };
 
   const handleSendOTP = async (e) => {

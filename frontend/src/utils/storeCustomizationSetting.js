@@ -1,4 +1,7 @@
 export const storeCustomization = {
+  theme: {
+    color: "green",
+  },
   navbar: {
     categories_menu_status: true,
     about_menu_status: true,

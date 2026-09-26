@@ -44,8 +44,20 @@ const useGetSetting = () => {
   }, [lang]);
 
   // derive without local setState to avoid render loops
-  const storeCustomizationSetting =
+  const resolvedCustomization =
     isFetched && customizationData ? customizationData : storeCustomization;
+
+  const rawColor = resolvedCustomization?.theme?.color;
+  const storeCustomizationSetting = {
+    ...resolvedCustomization,
+    theme: {
+      ...resolvedCustomization?.theme,
+      color:
+        !rawColor || rawColor === "pink" || rawColor === "#EC4899" || rawColor === "#ec4899"
+          ? "green"
+          : rawColor,
+    },
+  };
 
   return {
     lang,

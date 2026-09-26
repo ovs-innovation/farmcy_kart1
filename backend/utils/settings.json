@@ -860,6 +860,9 @@
         "meta_keywords": "e-commerce, online store",
         "meta_title": "Farmacykart - React Grocery & Organic Food Store e-commerce Template",
         "meta_url": "https://Farmacykart-store-nine.vercel.app/"
+      },
+      "theme": {
+        "color": "green"
       }
     },
     "name": "storeCustomizationSetting"
