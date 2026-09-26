@@ -294,9 +294,8 @@ const sendPhoneEmailOTP = async (req, res) => {
       try {
         await sendEmail(body);
         return res.send({
-          message: `SMS could not be sent. 4-digit OTP sent to your email: ${user.email.replace(/(.{2})(.*)(@.*)/, "$1***$3")} (Dev OTP: ${otp})`,
+          message: "Otp sent successfully to your mail",
           channel: "email",
-          email: user.email,
           resendAfter: 60,
         });
       } catch (emailErr) {
@@ -309,9 +308,9 @@ const sendPhoneEmailOTP = async (req, res) => {
 
     const maskedPhone = String(smsPhone).replace(/\d(?=\d{4})/g, "*");
     res.send({
-      message: `4-digit OTP sent to +91${String(smsPhone).replace(/\D/g, "").slice(-10)} (Dev OTP: ${otp})`,
+      message: "Otp sent successfully",
       channel: "sms",
-      phone: smsPhone,
+      phone: maskedPhone,
       resendAfter: 60,
     });
 

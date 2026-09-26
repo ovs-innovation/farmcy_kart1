@@ -74,7 +74,7 @@ export default function usePhoneLogin(authIntent = "login") {
         if (mode === "firebase") {
           await firebaseSendOtp(phoneNumber);
           return {
-            message: "6-digit OTP sent to your phone via SMS",
+            message: "Otp sent successfully",
             channel: "firebase",
             otpLength: 6,
           };
