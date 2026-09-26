@@ -68,7 +68,15 @@ const Header = () => {
   const handleLogOut = () => {
     dispatch({ type: "USER_LOGOUT" });
     Cookies.remove("adminInfo");
-    window.location.replace(`${import.meta.env.VITE_APP_ADMIN_DOMAIN}/login`);
+    const adminDomain = import.meta.env.VITE_APP_ADMIN_DOMAIN;
+    if (adminDomain) {
+      const loginUrl = adminDomain.startsWith("http")
+        ? `${adminDomain.replace(/\/+$/, "")}/login`
+        : `https://${adminDomain.replace(/\/+$/, "")}/login`;
+      window.location.replace(loginUrl);
+    } else {
+      window.location.replace("/login");
+    }
   };
 
   const handleNotificationOpen = async () => {

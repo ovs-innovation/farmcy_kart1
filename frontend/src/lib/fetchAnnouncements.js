@@ -3,7 +3,7 @@
  */
 export async function fetchWebsiteAnnouncements(limit = 5) {
   const base = (
-    process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:8092/api"
+    process.env.NEXT_PUBLIC_API_BASE_URL || "http://127.0.0.1:5000/api"
   ).replace("://localhost", "://127.0.0.1");
 
   const url = `${base}/customer-notifications/announcements?limit=${limit}`;

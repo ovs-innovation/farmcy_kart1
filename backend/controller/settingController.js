@@ -37,7 +37,7 @@ const getGlobalSetting = async (req, res) => {
     // Build an absolute URL for the logo so both admin and frontend
     // can display it without needing the file in their own public dirs.
     const protocol = req.protocol || "http";
-    const host = req.get("host") || "localhost:8092";
+    const host = req.get("host") || "localhost:5000";
     setting.logo = `${protocol}://${host}/logo/logo.png`;
     res.send(setting);
   } catch (err) {
@@ -227,7 +227,7 @@ const getStoreCustomizationSetting = async (req, res) => {
 
     const setting = storeCustomizationSetting.setting || {};
     const protocol = req.protocol || "http";
-    const host = req.get("host") || "localhost:8092";
+    const host = req.get("host") || "localhost:5000";
     const logoUrl = `${protocol}://${host}/logo/logo.png`;
     if (setting.navbar) {
       setting.navbar.logo = logoUrl;
