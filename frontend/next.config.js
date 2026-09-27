@@ -32,6 +32,56 @@ const nextConfig = {
       "images.unsplash.com",
       "onemg.gumlet.io",
       "i.ibb.co",
+      "farmacykart.com",
+      "www.farmacykart.com",
+      "api.farmacykart.com",
+      "admin.farmacykart.com",
+    ],
+    remotePatterns: [
+      {
+        protocol: "https",
+        hostname: "**.farmacykart.com",
+      },
+      {
+        protocol: "http",
+        hostname: "**.farmacykart.com",
+      },
+      {
+        protocol: "https",
+        hostname: "res.cloudinary.com",
+      },
+      {
+        protocol: "https",
+        hostname: "i.postimg.cc",
+      },
+      {
+        protocol: "https",
+        hostname: "img.youtube.com",
+      },
+      {
+        protocol: "https",
+        hostname: "placehold.co",
+      },
+      {
+        protocol: "https",
+        hostname: "images.unsplash.com",
+      },
+      {
+        protocol: "https",
+        hostname: "onemg.gumlet.io",
+      },
+      {
+        protocol: "https",
+        hostname: "i.ibb.co",
+      },
+      {
+        protocol: "http",
+        hostname: "localhost",
+      },
+      {
+        protocol: "http",
+        hostname: "127.0.0.1",
+      },
     ],
   },
 

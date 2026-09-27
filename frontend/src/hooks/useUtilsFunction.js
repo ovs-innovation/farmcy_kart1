@@ -40,7 +40,33 @@ const useUtilsFunction = () => {
   };
 
   const showingImage = (data) => {
-    return data !== undefined && data;
+    if (!data || typeof data !== "string") return data || "";
+    const trimmed = data.trim();
+    if (!trimmed || trimmed === "undefined" || trimmed === "null") return "";
+
+    const apiBase = (
+      process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.farmacykart.com/api"
+    ).replace(/\/api\/?$/, "");
+
+    // Rewrite legacy development localhost ports (e.g. 8092, 5000) stored in DB
+    if (
+      trimmed.includes("localhost:8092") ||
+      trimmed.includes("127.0.0.1:8092") ||
+      trimmed.includes("localhost:5000") ||
+      trimmed.includes("127.0.0.1:5000")
+    ) {
+      return trimmed.replace(
+        /^https?:\/\/(localhost|127\.0\.0\.1):(8092|5000)/i,
+        apiBase
+      );
+    }
+
+    // Convert relative paths to live backend URL
+    if (trimmed.startsWith("/uploads/") || trimmed.startsWith("/logo/")) {
+      return `${apiBase}${trimmed}`;
+    }
+
+    return trimmed;
   };
 
   const showingUrl = (data) => {

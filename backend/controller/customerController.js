@@ -954,8 +954,9 @@ const cloudinaryUpload = async (req, res) => {
       const filePath = path.join(targetSubDir, fileName);
       fs.writeFileSync(filePath, buffer);
       const host = req.get('host');
-      const protocol = req.protocol;
-      const fileUrl = `${protocol}://${host}/uploads/${folder}/${fileName}`;
+      const protocol = req.headers['x-forwarded-proto'] || req.protocol || 'http';
+      const apiBase = process.env.API_URL || `${protocol}://${host}`;
+      const fileUrl = `${apiBase}/uploads/${folder}/${fileName}`;
       return res.send({
         url: fileUrl,
         publicId: `${folder}/${fileName}`,

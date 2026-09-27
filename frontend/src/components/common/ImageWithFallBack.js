@@ -3,6 +3,34 @@ const { useEffect, useState } = require("react");
 
 const fallbackImage = "/placeholder.png";
 
+const sanitizeSrc = (src) => {
+  if (!src || typeof src !== "string") return fallbackImage;
+  const trimmed = src.trim();
+  if (!trimmed || trimmed === "undefined" || trimmed === "null") return fallbackImage;
+
+  const apiBase = (
+    process.env.NEXT_PUBLIC_API_BASE_URL || "https://api.farmacykart.com/api"
+  ).replace(/\/api\/?$/, "");
+
+  if (
+    trimmed.includes("localhost:8092") ||
+    trimmed.includes("127.0.0.1:8092") ||
+    trimmed.includes("localhost:5000") ||
+    trimmed.includes("127.0.0.1:5000")
+  ) {
+    return trimmed.replace(
+      /^https?:\/\/(localhost|127\.0\.0\.1):(8092|5000)/i,
+      apiBase
+    );
+  }
+
+  if (trimmed.startsWith("/uploads/") || trimmed.startsWith("/logo/")) {
+    return `${apiBase}${trimmed}`;
+  }
+
+  return trimmed;
+};
+
 const ImageWithFallback = ({
   fallback = fallbackImage,
   alt,
@@ -22,6 +50,7 @@ const ImageWithFallback = ({
 
   // If caller provided explicit width & height, render an intrinsic image (no fill)
   const hasSize = props.width && props.height;
+  const imageSrc = error ? fallback : sanitizeSrc(src);
 
   if (hasSize) {
     const { width, height, ...rest } = props;
@@ -29,7 +58,7 @@ const ImageWithFallback = ({
       <Image
         alt={alt}
         onError={setError}
-        src={error ? fallbackImage : src}
+        src={imageSrc}
         width={width}
         height={height}
         {...rest}
@@ -44,7 +73,7 @@ const ImageWithFallback = ({
     <Image
       alt={alt}
       onError={setError}
-      src={error ? fallbackImage : src}
+      src={imageSrc}
       {...props}
       fill
       style={{

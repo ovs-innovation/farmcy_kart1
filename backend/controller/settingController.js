@@ -36,9 +36,10 @@ const getGlobalSetting = async (req, res) => {
     setting.dl_number = "UP14200002337, UP14210002215";
     // Build an absolute URL for the logo so both admin and frontend
     // can display it without needing the file in their own public dirs.
-    const protocol = req.protocol || "http";
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
     const host = req.get("host") || "localhost:5000";
-    setting.logo = `${protocol}://${host}/logo/logo.png`;
+    const apiBase = process.env.API_URL || `${protocol}://${host}`;
+    setting.logo = `${apiBase}/logo/logo.png`;
     res.send(setting);
   } catch (err) {
     res.status(500).send({
@@ -226,9 +227,10 @@ const getStoreCustomizationSetting = async (req, res) => {
     }
 
     const setting = storeCustomizationSetting.setting || {};
-    const protocol = req.protocol || "http";
+    const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
     const host = req.get("host") || "localhost:5000";
-    const logoUrl = `${protocol}://${host}/logo/logo.png`;
+    const apiBase = process.env.API_URL || `${protocol}://${host}`;
+    const logoUrl = `${apiBase}/logo/logo.png`;
     if (setting.navbar) {
       setting.navbar.logo = logoUrl;
     }
