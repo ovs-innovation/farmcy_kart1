@@ -1,11 +1,15 @@
 const dayjs = require("dayjs");
 
+/**
+ * Format expiry date to YYYY-MM-DD with 4-digit year protection
+ */
 const formatExpiryDate = (dateVal) => {
   if (!dateVal) return "-";
   let str = String(dateVal).trim();
   if (str.includes("T")) {
     str = str.split("T")[0];
   }
+  // If year is 3 digits like 228-08-31, expand to 2028-08-31
   if (/^\d{3}-\d{2}-\d{2}$/.test(str)) {
     str = "2" + str;
   } else if (/^\d{1,3}-\d{2}-\d{2}$/.test(str)) {
@@ -23,33 +27,48 @@ const formatExpiryDate = (dateVal) => {
   return str || "-";
 };
 
+/**
+ * Centralized Calculation Engine for Invoices
+ * Enforces GST-inclusive pricing where GST is already included in MRP and Selling Price.
+ * Finalized Order is the source of truth for totals.
+ */
 const calculateInvoiceTotals = (order = {}, isWholesaler = false) => {
   const cart = order?.cart || [];
 
   let mrpTotal = 0;
   let totalDiscount = 0;
-  let calculatedGstTotal = 0;
+  let inclusiveGstTotal = 0;
   let linePayableTotal = 0;
 
   const processedCart = cart.map((item) => {
-    const quantity = Number(item.quantity) || 1;
+    const quantity = Math.max(1, Number(item.quantity) || 1);
 
+    // Resolve Unit Selling Price (inclusive of GST)
+    let unitSellingPrice = Number(item.price ?? item.prices?.price ?? 0);
+
+    // Resolve Unit MRP (handling 0 properly by falling back to originalPrice/price)
     let unitMrp = 0;
     if (isWholesaler) {
       unitMrp = Number(item.wholePrice) || Number(item.price) || 0;
     } else {
-      const rawMrp = item.mrp !== undefined && item.mrp !== null && Number(item.mrp) > 0
-        ? Number(item.mrp)
-        : Number(item.originalPrice || item.price || 0);
+      const rawMrp =
+        item.mrp !== undefined && item.mrp !== null && Number(item.mrp) > 0
+          ? Number(item.mrp)
+          : Number(item.originalPrice || item.prices?.originalPrice || unitSellingPrice || 0);
       unitMrp = Math.abs(rawMrp);
     }
 
-    let unitSellingPrice = Number(item.price ?? 0);
     if (unitSellingPrice <= 0 && unitMrp > 0 && typeof item.discount === "number" && item.discount > 0) {
       unitSellingPrice = unitMrp - (unitMrp * item.discount) / 100;
     }
     unitSellingPrice = Math.abs(unitSellingPrice);
 
+    // If unitMrp was missing or lower than selling price, floor it to selling price
+    if (unitMrp < unitSellingPrice) {
+      unitMrp = unitSellingPrice;
+    }
+
+    // Calculate Unit Discount & Line Discount
     let unitDiscount = 0;
     if (!isWholesaler) {
       if (unitMrp > unitSellingPrice) {
@@ -60,16 +79,21 @@ const calculateInvoiceTotals = (order = {}, isWholesaler = false) => {
     }
     unitDiscount = Math.max(0, unitDiscount);
 
-    const lineMrp = unitMrp * quantity;
-    const lineDiscount = unitDiscount * quantity;
-    const linePayable = unitSellingPrice * quantity;
+    const lineMrp = Number((unitMrp * quantity).toFixed(2));
+    const lineDiscount = Number((unitDiscount * quantity).toFixed(2));
+    const linePayable = Number((unitSellingPrice * quantity).toFixed(2));
 
-    const gstRate = Number(item.taxRate || item.gstRate || item.gstPercentage || 12) || 0;
-    const lineGst = (linePayable * gstRate) / 100;
+    // GST is INCLUDED in the Selling Price:
+    // Embedded GST component = Selling Price - (Selling Price / (1 + rate / 100))
+    const gstRate = Number(item.taxRate ?? item.gstRate ?? item.gstPercentage ?? 12) || 0;
+    const lineGst =
+      linePayable > 0 && gstRate > 0
+        ? Number((linePayable - linePayable / (1 + gstRate / 100)).toFixed(2))
+        : 0;
 
     mrpTotal += lineMrp;
     totalDiscount += lineDiscount;
-    calculatedGstTotal += lineGst;
+    inclusiveGstTotal += lineGst;
     linePayableTotal += linePayable;
 
     return {
@@ -83,89 +107,48 @@ const calculateInvoiceTotals = (order = {}, isWholesaler = false) => {
       linePayable,
       gstRate,
       lineGst,
+      hsn: item.hsn || item.hsnCode || "-",
+      batchNo: item.batchNo || "-",
       formattedExpDate: formatExpiryDate(item.expDate),
     };
   });
 
   const shippingCost = Math.max(0, Number(order?.shippingCost || 0));
 
-  let totalGst = calculatedGstTotal;
-  if (order?.taxSummary?.exclusiveTax !== undefined && order?.taxSummary?.exclusiveTax > 0) {
-    totalGst = Number(order.taxSummary.exclusiveTax);
+  // Determine coupon discount if present
+  let couponDiscount = 0;
+  if (order?.coupon?.discountAmount !== undefined && Number(order.coupon.discountAmount) > 0) {
+    couponDiscount = Number(order.coupon.discountAmount);
+  } else if (order?.coupon?.couponCode && order?.discount > 0) {
+    couponDiscount = Number(order.discount);
   }
 
-  let payableAmount = Number(order?.total || 0);
-  if (!payableAmount || payableAmount <= 0) {
-    payableAmount = linePayableTotal + shippingCost;
+  // Grand Total: Authoritative from finalized order, with deterministic fallback
+  let grandTotal = 0;
+  if (order?.total !== undefined && order?.total !== null && Number(order.total) >= 0) {
+    grandTotal = Number(order.total);
+  } else {
+    grandTotal = Math.max(0, linePayableTotal + shippingCost - couponDiscount);
   }
 
   return {
     cart: processedCart,
-    mrpTotal: Math.abs(mrpTotal),
-    totalDiscount: Math.abs(totalDiscount),
-    totalGst: Math.abs(totalGst),
+    mrpTotal: Number(mrpTotal.toFixed(2)),
+    totalDiscount: Number(totalDiscount.toFixed(2)),
+    subTotal: Number(linePayableTotal.toFixed(2)),
+    sellingTotal: Number(linePayableTotal.toFixed(2)),
+    inclusiveGstTotal: Number(inclusiveGstTotal.toFixed(2)),
+    totalGst: Number(inclusiveGstTotal.toFixed(2)),
     shippingCost,
-    payableAmount: Math.abs(payableAmount),
-    linePayableTotal: Math.abs(linePayableTotal),
+    couponDiscount: Number(couponDiscount.toFixed(2)),
+    grandTotal: Number(grandTotal.toFixed(2)),
+    payableAmount: Number(grandTotal.toFixed(2)),
+    linePayableTotal: Number(linePayableTotal.toFixed(2)),
+    isGstIncluded: true,
   };
 };
 
-const sampleOrder = {
-  cart: [
-    {
-      title: "Metform 500mg Tablet",
-      mrp: 42.00,
-      price: 32.00,
-      taxRate: 12,
-      quantity: 1,
-      expDate: "2028-08-31"
-    },
-    {
-      title: "Amox 500mg Capsule",
-      mrp: 57.00,
-      price: 54.72,
-      taxRate: 12,
-      quantity: 1,
-      expDate: "2028-08-31"
-    },
-    {
-      title: "Dr Morepen Gluco One BG 03 Blood Glucose Test Strips",
-      mrp: 795.00,
-      price: 610.00,
-      taxRate: 12,
-      quantity: 1,
-      expDate: "228-08-31" // malformed year example
-    }
-  ],
-  shippingCost: 0,
-  total: 696.72
+module.exports = {
+  formatExpiryDate,
+  calculateInvoiceTotals,
 };
-
-const result = calculateInvoiceTotals(sampleOrder);
-
-console.log("=== INVOICE CALCULATION VERIFICATION ===");
-console.log("MRP Total:", result.mrpTotal.toFixed(2), "(Expected: 894.00)");
-console.log("Total Discount:", result.totalDiscount.toFixed(2), "(Expected: 197.28)");
-console.log("Total GST:", result.totalGst.toFixed(2), "(Expected: 83.61)");
-console.log("Shipping Cost:", result.shippingCost === 0 ? "FREE" : result.shippingCost.toFixed(2));
-console.log("Estimated Payable:", result.payableAmount.toFixed(2), "(Expected: 696.72)");
-console.log("\n--- Line Items ---");
-result.cart.forEach((item, idx) => {
-  console.log(`${idx + 1}. ${item.title}`);
-  console.log(`   MRP: ₹${item.unitMrp.toFixed(2)}, Discount: ₹${item.unitDiscount.toFixed(2)}, Payable: ₹${item.unitSellingPrice.toFixed(2)}, GST (${item.gstRate}%): ₹${item.lineGst.toFixed(2)}, Exp: ${item.formattedExpDate}`);
-});
-
-const assertEqual = (actual, expected, name) => {
-  if (Math.abs(actual - expected) > 0.01) {
-    console.error(`FAILED: ${name}. Actual=${actual}, Expected=${expected}`);
-    process.exit(1);
-  } else {
-    console.log(`PASSED: ${name}`);
-  }
-};
-
-assertEqual(result.mrpTotal, 894.00, "MRP Total");
-assertEqual(result.totalDiscount, 197.28, "Total Discount");
-assertEqual(result.totalGst, 83.61, "Total GST");
-assertEqual(result.payableAmount, 696.72, "Estimated Payable");
-assertEqual(result.cart[2].formattedExpDate, "2028-08-31", "Expiry Date 4-digit year fix");

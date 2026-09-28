@@ -67,7 +67,7 @@ const generateHeader = (doc, invoice, logoBuffer) => {
   doc
     .fontSize(17)
     .font("Helvetica-Bold")
-    .text("Invoice", 50, 50)
+    .text("Tax Invoice", 50, 50)
     .fontSize(10)
     .font("Helvetica")
     .text("Status :", 50, 70)
@@ -191,7 +191,7 @@ function generateInvoiceTable(doc, invoice) {
     doc,
     subtotalPosition,
     "SubTotal",
-    "VAT/GST",
+    "GST (Incl.)",
     "Shipping Cost",
     "Discount",
     "Total"

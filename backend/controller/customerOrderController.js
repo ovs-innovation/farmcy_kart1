@@ -372,15 +372,19 @@ const recalculateOrderFinancials = async ({ cart, couponCode, userShippingCost =
     const itemTotal = unitPrice * quantity;
     trustedSubTotal += itemTotal;
 
+    const mrp = Number(dbProduct.prices?.originalPrice ?? dbProduct.originalPrice ?? dbProduct.mrp ?? unitPrice);
     verifiedCart.push({
       ...item,
       _id: dbProduct._id,
       id: item.id || dbProduct._id.toString(),
       price: unitPrice,
+      sellingPrice: unitPrice,
+      mrp: item.mrp || mrp,
+      originalPrice: item.originalPrice || mrp,
       itemTotal: itemTotal,
       title: item.title || dbProduct.title?.en || dbProduct.title || "Product",
       taxRate: dbProduct.taxRate || 0,
-      isPriceInclusive: dbProduct.isPriceInclusive || false,
+      isPriceInclusive: dbProduct.isPriceInclusive !== undefined ? dbProduct.isPriceInclusive : true,
       hsn: item.hsn || dbProduct.hsnCode || "",
     });
   }

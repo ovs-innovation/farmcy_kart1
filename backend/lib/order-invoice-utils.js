@@ -27,16 +27,25 @@ const buildCompanyInfo = async (logoUrl) => {
 };
 
 const normalizeInvoiceCart = (cart = []) =>
-  cart.map((item) => ({
-    title: getString(item.title),
-    quantity: Number(item.quantity) || 1,
-    price: Number(item.prices?.price ?? item.price ?? 0),
-    mrp: Number(item.mrp || item.originalPrice || item.prices?.price || item.price || 0),
-    hsn: item.hsn || item.hsnCode || "",
-    batchNo: item.batchNo || "",
-    expDate: item.expDate || "",
-    taxRate: Number(item.taxRate || item.gstRate || item.gstPercentage || 12),
-  }));
+  cart.map((item) => {
+    const unitPrice = Number(item.prices?.price ?? item.price ?? item.sellingPrice ?? 0);
+    const unitMrp = Number(item.mrp || item.originalPrice || item.prices?.originalPrice || unitPrice);
+    const discount = Number(item.discountAmount ?? (unitMrp > unitPrice ? unitMrp - unitPrice : 0));
+    return {
+      title: getString(item.title),
+      quantity: Number(item.quantity) || 1,
+      price: unitPrice,
+      sellingPrice: unitPrice,
+      mrp: unitMrp,
+      originalPrice: unitMrp,
+      discountAmount: discount,
+      hsn: item.hsn || item.hsnCode || "",
+      batchNo: item.batchNo || "",
+      expDate: item.expDate || "",
+      taxRate: Number(item.taxRate || item.gstRate || item.gstPercentage || 12),
+      gstRate: Number(item.gstRate || item.taxRate || item.gstPercentage || 12),
+    };
+  });
 
 const enrichOrderForInvoice = (order, companyInfo) => {
   const cart = normalizeInvoiceCart(order.cart);
@@ -44,10 +53,14 @@ const enrichOrderForInvoice = (order, companyInfo) => {
   const shippingCost = Number(order.shippingCost ?? 0);
   const discount = Number(order.discount ?? 0);
   const total = Number(order.total ?? 0);
-  const taxFromCart = cart.reduce((sum, item) => {
-    return sum + Number(item.taxAmount || 0);
+  
+  // Calculate embedded inclusive GST
+  const inclusiveTax = cart.reduce((sum, item) => {
+    const lineTotal = item.price * item.quantity;
+    const rate = item.gstRate || item.taxRate || 12;
+    const itemGst = (lineTotal * rate) / (100 + rate);
+    return sum + itemGst;
   }, 0);
-  const vat = Number(order.vat ?? order.tax ?? taxFromCart ?? 0);
 
   const orderData = typeof order.toObject === 'function' ? order.toObject() : order;
   return {
@@ -57,7 +70,8 @@ const enrichOrderForInvoice = (order, companyInfo) => {
     shippingCost,
     discount,
     total,
-    vat,
+    vat: Number(order.taxSummary?.inclusiveTax || order.vat || inclusiveTax || 0),
+    inclusiveGst: Number(order.taxSummary?.inclusiveTax || inclusiveTax || 0),
     company_info: companyInfo,
   };
 };

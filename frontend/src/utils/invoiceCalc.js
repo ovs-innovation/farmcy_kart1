@@ -29,36 +29,44 @@ export const formatExpiryDate = (dateVal) => {
 
 /**
  * Centralized Calculation Engine for Invoices
- * Guarantees exact mathematical alignment between line items, subtotals, GST, and totals.
+ * Enforces GST-inclusive pricing where GST is already included in MRP and Selling Price.
+ * Finalized Order is the source of truth for totals.
  */
 export const calculateInvoiceTotals = (order = {}, isWholesaler = false) => {
   const cart = order?.cart || [];
 
   let mrpTotal = 0;
   let totalDiscount = 0;
-  let calculatedGstTotal = 0;
+  let inclusiveGstTotal = 0;
   let linePayableTotal = 0;
 
   const processedCart = cart.map((item) => {
-    const quantity = Number(item.quantity) || 1;
+    const quantity = Math.max(1, Number(item.quantity) || 1);
+
+    // Resolve Unit Selling Price (inclusive of GST)
+    let unitSellingPrice = Number(item.price ?? item.prices?.price ?? 0);
 
     // Resolve Unit MRP (handling 0 properly by falling back to originalPrice/price)
     let unitMrp = 0;
     if (isWholesaler) {
       unitMrp = Number(item.wholePrice) || Number(item.price) || 0;
     } else {
-      const rawMrp = item.mrp !== undefined && item.mrp !== null && Number(item.mrp) > 0
-        ? Number(item.mrp)
-        : Number(item.originalPrice || item.price || 0);
+      const rawMrp =
+        item.mrp !== undefined && item.mrp !== null && Number(item.mrp) > 0
+          ? Number(item.mrp)
+          : Number(item.originalPrice || item.prices?.originalPrice || unitSellingPrice || 0);
       unitMrp = Math.abs(rawMrp);
     }
 
-    // Resolve Unit Selling Price
-    let unitSellingPrice = Number(item.price ?? 0);
     if (unitSellingPrice <= 0 && unitMrp > 0 && typeof item.discount === "number" && item.discount > 0) {
       unitSellingPrice = unitMrp - (unitMrp * item.discount) / 100;
     }
     unitSellingPrice = Math.abs(unitSellingPrice);
+
+    // If unitMrp was missing or lower than selling price, floor it to selling price
+    if (unitMrp < unitSellingPrice) {
+      unitMrp = unitSellingPrice;
+    }
 
     // Calculate Unit Discount & Line Discount
     let unitDiscount = 0;
@@ -71,17 +79,21 @@ export const calculateInvoiceTotals = (order = {}, isWholesaler = false) => {
     }
     unitDiscount = Math.max(0, unitDiscount);
 
-    const lineMrp = unitMrp * quantity;
-    const lineDiscount = unitDiscount * quantity;
-    const linePayable = unitSellingPrice * quantity;
+    const lineMrp = Number((unitMrp * quantity).toFixed(2));
+    const lineDiscount = Number((unitDiscount * quantity).toFixed(2));
+    const linePayable = Number((unitSellingPrice * quantity).toFixed(2));
 
-    // Resolve GST
-    const gstRate = Number(item.taxRate || item.gstRate || item.gstPercentage || 12) || 0;
-    const lineGst = (linePayable * gstRate) / 100;
+    // GST is INCLUDED in the Selling Price:
+    // Embedded GST component = Selling Price - (Selling Price / (1 + rate / 100))
+    const gstRate = Number(item.taxRate ?? item.gstRate ?? item.gstPercentage ?? 12) || 0;
+    const lineGst =
+      linePayable > 0 && gstRate > 0
+        ? Number((linePayable - linePayable / (1 + gstRate / 100)).toFixed(2))
+        : 0;
 
     mrpTotal += lineMrp;
     totalDiscount += lineDiscount;
-    calculatedGstTotal += lineGst;
+    inclusiveGstTotal += lineGst;
     linePayableTotal += linePayable;
 
     return {
@@ -95,31 +107,43 @@ export const calculateInvoiceTotals = (order = {}, isWholesaler = false) => {
       linePayable,
       gstRate,
       lineGst,
+      hsn: item.hsn || item.hsnCode || "-",
+      batchNo: item.batchNo || "-",
       formattedExpDate: formatExpiryDate(item.expDate),
     };
   });
 
   const shippingCost = Math.max(0, Number(order?.shippingCost || 0));
 
-  // Determine Tax
-  let totalGst = calculatedGstTotal;
-  if (order?.taxSummary?.exclusiveTax !== undefined && order?.taxSummary?.exclusiveTax > 0) {
-    totalGst = Number(order.taxSummary.exclusiveTax);
+  // Determine coupon discount if present
+  let couponDiscount = 0;
+  if (order?.coupon?.discountAmount !== undefined && Number(order.coupon.discountAmount) > 0) {
+    couponDiscount = Number(order.coupon.discountAmount);
+  } else if (order?.coupon?.couponCode && order?.discount > 0) {
+    couponDiscount = Number(order.discount);
   }
 
-  // Determine Final Payable Total
-  let payableAmount = Number(order?.total || 0);
-  if (!payableAmount || payableAmount <= 0) {
-    payableAmount = linePayableTotal + shippingCost;
+  // Grand Total: Authoritative from finalized order, with deterministic fallback
+  let grandTotal = 0;
+  if (order?.total !== undefined && order?.total !== null && Number(order.total) >= 0) {
+    grandTotal = Number(order.total);
+  } else {
+    grandTotal = Math.max(0, linePayableTotal + shippingCost - couponDiscount);
   }
 
   return {
     cart: processedCart,
-    mrpTotal: Math.abs(mrpTotal),
-    totalDiscount: Math.abs(totalDiscount),
-    totalGst: Math.abs(totalGst),
+    mrpTotal: Number(mrpTotal.toFixed(2)),
+    totalDiscount: Number(totalDiscount.toFixed(2)),
+    subTotal: Number(linePayableTotal.toFixed(2)),
+    sellingTotal: Number(linePayableTotal.toFixed(2)),
+    inclusiveGstTotal: Number(inclusiveGstTotal.toFixed(2)),
+    totalGst: Number(inclusiveGstTotal.toFixed(2)),
     shippingCost,
-    payableAmount: Math.abs(payableAmount),
-    linePayableTotal: Math.abs(linePayableTotal),
+    couponDiscount: Number(couponDiscount.toFixed(2)),
+    grandTotal: Number(grandTotal.toFixed(2)),
+    payableAmount: Number(grandTotal.toFixed(2)),
+    linePayableTotal: Number(linePayableTotal.toFixed(2)),
+    isGstIncluded: true,
   };
 };

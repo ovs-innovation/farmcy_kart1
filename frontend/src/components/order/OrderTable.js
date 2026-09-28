@@ -43,15 +43,14 @@ const OrderTable = ({ data, currency }) => {
             <td className="px-2 py-1 whitespace-nowrap text-center font-normal border-r border-gray-200 print:px-1 print:py-1 print:text-xs">
               {isWholesaler
                 ? `${currency}0.00`
-                : `${currency}${getNumberTwo(item.lineDiscount)}`}
+                : item.lineDiscount > 0
+                ? `${currency}${getNumberTwo(item.lineDiscount)}`
+                : "-"}
             </td>
-            <td className="px-2 py-1 whitespace-nowrap text-center font-normal border-r border-gray-200 print:px-1 print:py-1 print:text-xs">
-              {item.gstRate}%
+            <td className="px-2 py-1 whitespace-nowrap text-center font-normal font-DejaVu border-r border-gray-200 print:px-1 print:py-1 print:text-xs">
+              {currency}{getNumberTwo(item.unitSellingPrice)}
             </td>
-            <td className="px-2 py-1 whitespace-nowrap text-center font-normal border-r border-gray-200 print:px-1 print:py-1 print:text-xs">
-              {currency}{getNumberTwo(item.lineGst)}
-            </td>
-            <td className="px-2 py-1 whitespace-nowrap text-right font-bold font-DejaVu text-gray-600 print:px-1 print:py-1 print:text-xs">
+            <td className="px-2 py-1 whitespace-nowrap text-right font-bold font-DejaVu text-gray-800 print:px-1 print:py-1 print:text-xs">
               {currency}{getNumberTwo(item.linePayable)}
             </td>
           </tr>

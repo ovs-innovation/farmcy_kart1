@@ -478,123 +478,112 @@ const InvoiceForDownload = ({
             <View style={styles.table}>
               <View style={styles.tableRowHeder}>
                 <View style={{ width: "100%", paddingLeft: "3px", paddingRight: "3px", paddingTop:"2px" }}>
-                  <Text  >
-                    <Text style={[styles.header,{color:"#fff"}]}>product details:</Text>
+                  <Text>
+                    <Text style={[styles.header,{color:"#fff"}]}>TAX INVOICE - PRODUCT DETAILS (Prices inclusive of applicable GST)</Text>
                   </Text>
                 </View>
               </View>
               <View style={styles.tableRow}>
-                <View style={styles.tableColSr}>
+                <View style={{ width: "5%" }}>
                   <Text style={styles.tableCell}>
                     <Text style={styles.header}>Sr.</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColProduct}>
+                <View style={{ width: "27%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>product name</Text>
+                    <Text style={styles.header}>Product Name</Text>
                   </Text>
                 </View>
-                {/* <View style={styles.tableColMfg}>
+                <View style={{ width: "8%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>manufacturer name</Text>
-                  </Text>
-                </View> */}
-                <View style={styles.tableColHsn}>
-                  <Text style={styles.tableCell}>
-                    <Text style={styles.header}>hsn</Text>
+                    <Text style={styles.header}>HSN</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColSmall}>
+                <View style={{ width: "8%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>batch</Text>
+                    <Text style={styles.header}>Batch</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColSmall}>
+                <View style={{ width: "8%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>expiry</Text>
+                    <Text style={styles.header}>Expiry</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColQty}>
+                <View style={{ width: "6%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>qty</Text>
+                    <Text style={styles.header}>Qty</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColSmall}>
+                <View style={{ width: "9%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>{isWholesaler ? "price" : "mrp"}</Text>
+                    <Text style={styles.header}>{isWholesaler ? "Price" : "MRP"}</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColSmall}>
+                <View style={{ width: "9%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>discount</Text>
+                    <Text style={styles.header}>Discount</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColHsn}>
+                <View style={{ width: "10%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>gst %</Text>
+                    <Text style={styles.header}>Selling Price</Text>
                   </Text>
                 </View>
-                <View style={styles.tableColSmall}>
+                <View style={{ width: "10%" }}>
                   <Text style={styles.tableCell}>
-                    <Text style={styles.header}>gst amt</Text>
-                  </Text>
-                </View>
-                <View style={styles.tableColSmall}>
-                  <Text style={styles.tableCell}>
-                    <Text style={styles.header}>Pay. AMT</Text>
+                    <Text style={styles.header}>Total</Text>
                   </Text>
                 </View>
               </View>
             {totals?.cart?.map((item, i) => {
               return (
                 <View key={i} style={styles.tableRow}>
-                  <View style={styles.tableColSr}>
+                  <View style={{ width: "5%" }}>
                     <Text style={styles.tableCellNumeric}>{i + 1}</Text>
                   </View>
-                  <View style={styles.tableColProduct}>
+                  <View style={{ width: "27%" }}>
                     <Text style={styles.tableCell}>{item.title}</Text>
                   </View>
-                  <View style={styles.tableColHsn}>
+                  <View style={{ width: "8%" }}>
                     <Text style={styles.tableCell}>
                       {item.hsn || "-"}
                     </Text>
                   </View>
-                  <View style={styles.tableColSmall}>
+                  <View style={{ width: "8%" }}>
                     <Text style={styles.tableCell}>
                       {item.batchNo || "-"}
                     </Text>
                   </View>
-                  <View style={styles.tableColSmall}>
+                  <View style={{ width: "8%" }}>
                     <Text style={styles.tableCell}>
                       {item.formattedExpDate}
                     </Text>
                   </View>
-                  <View style={styles.tableColQty}>
+                  <View style={{ width: "6%" }}>
                     <Text style={styles.tableCellNumeric}>
                       {item.quantity}
                     </Text>
                   </View>
-                  <View style={styles.tableColSmall}>
+                  <View style={{ width: "9%" }}>
                     <Text style={styles.tableCellNumeric}>
                       {currency}{getNumberTwo(isWholesaler ? item.unitSellingPrice : item.unitMrp)}
                     </Text>
                   </View>
-                  <View style={styles.tableColSmall}>
+                  <View style={{ width: "9%" }}>
                     <Text style={styles.tableCellNumeric}>
-                      {isWholesaler ? `${currency}0.00` : `${currency}${getNumberTwo(item.lineDiscount)}`}
+                      {isWholesaler
+                        ? `${currency}0.00`
+                        : item.lineDiscount > 0
+                        ? `${currency}${getNumberTwo(item.lineDiscount)}`
+                        : "-"}
                     </Text>
                   </View>
-                  <View style={styles.tableColHsn}>
+                  <View style={{ width: "10%" }}>
                     <Text style={styles.tableCellNumeric}>
-                      {item.gstRate}%
+                      {currency}{getNumberTwo(item.unitSellingPrice)}
                     </Text>
                   </View>
-                  <View style={styles.tableColSmall}>
-                    <Text style={styles.tableCellNumeric}>
-                      {`${currency}${getNumberTwo(item.lineGst)}`}
-                    </Text>
-                  </View>
-                  <View style={styles.tableColSmall}>
+                  <View style={{ width: "10%" }}>
                     <Text style={styles.tableCellNumeric}>
                       {currency}{getNumberTwo(item.linePayable)}
                     </Text>
@@ -608,72 +597,89 @@ const InvoiceForDownload = ({
           {/* Bottom Section: Terms & Conditions + Price Summary */}
           <View style={{ flexDirection: "row", justifyContent: "space-between", marginTop: 0, paddingHorizontal: 5 }}>
             {/* Left: Terms and Conditions */}
-            <View style={{ width: "55%", paddingRight: 10 }}>
+            <View style={{ width: "50%", paddingRight: 10 }}>
               <Text style={{ fontSize: 7, fontWeight: "bold", color: "#1f2937", marginBottom: 0 }}>
                 Registered Pharmacist
               </Text>
               <Text style={{ fontSize: 7, color: "#006E44", marginBottom: 0 }}>
                 {globalSetting?.company_name || "Farmacykart Private Limited"}
               </Text>
-              <Text style={{ fontSize: 7, color: "#006E44" }}>
+              <Text style={{ fontSize: 7, color: "#006E44", marginBottom: 3 }}>
                 {globalSetting?.website || "www.farmacykart.com"}
               </Text>
+
+              {/* Payment Details */}
+              <View style={{ marginTop: 2, padding: 3, backgroundColor: "#f9fafb", borderRadius: 2 }}>
+                <Text style={{ fontSize: 6.5, color: "#4b5563" }}>
+                  <Text style={{ fontWeight: "bold", color: "#1f2937" }}>Payment Method: </Text>
+                  <Text>{data?.paymentMethod || "COD"}  </Text>
+                  <Text style={{ fontWeight: "bold", color: "#1f2937" }}>Status: </Text>
+                  <Text>{data?.paymentStatus || (data?.paymentMethod === "Cash" || data?.paymentMethod === "Cash On Delivery" || data?.paymentMethod === "COD" ? "Pending" : "Paid")}</Text>
+                </Text>
+              </View>
             </View>
 
             {/* Right: Price Summary */}
-            <View style={{ width: "40%", borderLeft: 1, borderColor: "#e5e7eb", paddingLeft: 10 }}>
+            <View style={{ width: "45%", borderLeft: 1, borderColor: "#e5e7eb", paddingLeft: 10 }}>
               {/* MRP Total */}
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0 }}>
                 <Text style={{ fontSize: 7, color: "#374151" }}>{isWholesaler ? "Total Price" : "MRP Total"}</Text>
                 <Text style={{ fontSize: 7, color: "#374151", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
-                  {currency}{getNumberTwo(mrpTotal)}
+                  {currency}{getNumberTwo(isWholesaler ? totals.sellingTotal : totals.mrpTotal)}
                 </Text>
               </View>
               
               {/* Total Discount */}
-              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0 }}>
-                <Text style={{ fontSize: 7, color: "#374151" }}>Total Discount</Text>
-                <Text style={{ fontSize: 7, color: "#16a34a", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
-                  {isWholesaler 
-                    ? `${currency}${getNumberTwo(0)}`
-                    : `-${currency}${getNumberTwo(totalDiscount)}`
-                  }
+              {!isWholesaler && (
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0 }}>
+                  <Text style={{ fontSize: 7, color: "#374151" }}>Total Discount</Text>
+                  <Text style={{ fontSize: 7, color: "#16a34a", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
+                    -{currency}{getNumberTwo(totals.totalDiscount)}
+                  </Text>
+                </View>
+              )}
+
+              {/* Subtotal / Selling Price */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0, backgroundColor: "#f9fafb", padding: 1 }}>
+                <Text style={{ fontSize: 7, fontWeight: "bold", color: "#1f2937" }}>Subtotal / Selling Price</Text>
+                <Text style={{ fontSize: 7, color: "#1f2937", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
+                  {currency}{getNumberTwo(totals.sellingTotal)}
                 </Text>
               </View>
               
               {/* Coupon Applied */}
-              {data?.coupon?.couponCode && (
-                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0, backgroundColor: "#f0fdf4", padding: 2, borderRadius: 1 }}>
+              {totals.couponDiscount > 0 && (
+                <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0, backgroundColor: "#f0fdf4", padding: 1, borderRadius: 1 }}>
                   <Text style={{ fontSize: 7, color: "#15803d" }}>
-                    Coupon: <Text style={{ fontWeight: "bold" }}>{data.coupon.couponCode}</Text>
+                    Coupon: <Text style={{ fontWeight: "bold" }}>{data?.coupon?.couponCode || "COUPON"}</Text>
                   </Text>
                   <Text style={{ fontSize: 7, color: "#16a34a", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
-                    -{currency}{getNumberTwo(Math.abs(data?.coupon?.discountAmount || data?.discount || 0))}
+                    -{currency}{getNumberTwo(totals.couponDiscount)}
                   </Text>
                 </View>
               )}
               
-              {/* GST */}
+              {/* GST Note */}
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0 }}>
                 <Text style={{ fontSize: 7, color: "#374151" }}>GST</Text>
-                <Text style={{ fontSize: 7, color: "#374151", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
-                  {currency}{getNumberTwo(totalGst)}
+                <Text style={{ fontSize: 6.5, color: "#4b5563" }}>
+                  Included in MRP
                 </Text>
               </View>
               
               {/* Shipping Cost */}
               <View style={{ flexDirection: "row", justifyContent: "space-between", marginBottom: 0 }}>
                 <Text style={{ fontSize: 7, color: "#374151" }}>Shipping Cost</Text>
-                <Text style={{ fontSize: 7, color: shippingCost > 0 ? "#374151" : "#16a34a", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
-                  {shippingCost > 0 ? `${currency}${getNumberTwo(shippingCost)}` : "FREE"}
+                <Text style={{ fontSize: 7, color: totals.shippingCost > 0 ? "#374151" : "#16a34a", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
+                  {totals.shippingCost > 0 ? `${currency}${getNumberTwo(totals.shippingCost)}` : "FREE"}
                 </Text>
               </View>
               
-              {/* Estimated Payable */}
-              <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: "#f3f4f6", padding: 4, borderRadius: 2 }}>
-                <Text style={{ fontSize: 8, color: "#1f2937", fontWeight: "bold" }}>Estimated Payable</Text>
+              {/* Grand Total */}
+              <View style={{ flexDirection: "row", justifyContent: "space-between", backgroundColor: "#f3f4f6", padding: 3, borderRadius: 2, marginTop: 1 }}>
+                <Text style={{ fontSize: 8, color: "#1f2937", fontWeight: "bold" }}>Grand Total</Text>
                 <Text style={{ fontSize: 8, color: "#1f2937", fontWeight: "bold", fontFamily: "DejaVu Sans" }}>
-                  {currency}{getNumberTwo(payableAmount)}
+                  {currency}{getNumberTwo(totals.grandTotal)}
                 </Text>
               </View>
             </View>
