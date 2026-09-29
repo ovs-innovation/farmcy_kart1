@@ -13,25 +13,16 @@ const {
   simpleResetPasswordEmail,
 } = require("../lib/email-sender/simple-templates");
 const { sendVerificationCode } = require("../lib/phone-verification/sender");
-
-const PLACEHOLDER_EMAIL_DOMAIN = "phone.farmacykart.com";
-
-const normalizePhone = (phone) => {
-  if (!phone) return "";
-  const digits = String(phone).replace(/\D/g, "");
-  return digits.length >= 10 ? digits.slice(-10) : digits;
-};
-
-const buildPlaceholderEmail = (phone) => {
-  const p = normalizePhone(phone);
-  return `${p || Date.now()}@${PLACEHOLDER_EMAIL_DOMAIN}`;
-};
-
-const isPlaceholderEmail = (email) =>
-  !!email &&
-  (String(email).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`) ||
-   String(email).toLowerCase().includes("phone.farmacykart.com") ||
-   String(email).toLowerCase().includes("placeholder"));
+const {
+  normalizePhone,
+  toE164,
+  buildPhoneQueryVariants,
+  isSamePhone,
+  buildPlaceholderEmail,
+  isPlaceholderEmail,
+  PLACEHOLDER_EMAIL_DOMAIN,
+} = require("../utils/phoneUtils");
+const { verifyFirebaseIdToken } = require("../utils/firebaseAuthUtils");
 
 const isFakeName = (name) => {
   if (!name || !String(name).trim()) return false;
@@ -180,8 +171,9 @@ const verifyPhoneNumber = async (req, res) => {
 const findCustomerByPhone = async (phoneNumber) => {
   const phoneNorm = normalizePhone(phoneNumber);
   if (!phoneNorm || phoneNorm.length < 10) return null;
+  const variants = buildPhoneQueryVariants(phoneNorm);
   return Customer.findOne({
-    $or: [{ phone: phoneNorm }, { phone: String(phoneNumber).replace(/\D/g, "") }],
+    phone: { $in: variants },
   });
 };
 
@@ -409,85 +401,68 @@ const verifyPhoneEmailOTP = async (req, res) => {
 };
 
 const loginWithPhone = async (req, res) => {
-  // Keeping this for potential legacy or external use, but marking as deprecated if needed.
-  // Actually, I'll just keep it but the new flow won't use it.
   try {
     const { phoneNumber, idToken } = req.body;
 
     if (!phoneNumber) {
       return res.status(400).send({
         message: "Phone number is required.",
+        code: "PHONE_REQUIRED",
       });
     }
 
     if (!idToken) {
       return res.status(400).send({
         message: "Firebase ID token is required.",
+        code: "ID_TOKEN_REQUIRED",
       });
     }
 
-    // Verify Firebase ID Token
-    let decodedToken;
-    try {
-      const admin = require("../config/firebase-admin");
-      if (admin.apps.length > 0) {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
-        const firebasePhone = decodedToken.phone_number;
-
-        // Security check: ensure the token belongs to the phone number being logged in
-        if (firebasePhone !== phoneNumber) {
-          return res.status(401).send({
-            message: "Token phone number mismatch. Verification failed.",
-          });
-        }
-      } else {
-        console.warn("Firebase Admin not initialized. Decoding token without verification.");
-        const parts = idToken.split('.');
-        if (parts.length !== 3) throw new Error("Invalid JWT format");
-        decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-      }
-    } catch (verifyErr) {
-      console.warn("Firebase verification failed, trying manual decode as fallback:", verifyErr.message);
-      try {
-        const parts = idToken.split('.');
-        if (parts.length === 3) {
-          decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        } else {
-          throw verifyErr;
-        }
-      } catch (fallbackErr) {
-        return res.status(401).send({
-          message: "Invalid or expired Firebase token.",
-        });
-      }
+    // Verify Firebase ID Token cryptographically
+    const tokenResult = await verifyFirebaseIdToken(idToken);
+    if (!tokenResult.ok) {
+      return res.status(tokenResult.status || 401).send({
+        message: tokenResult.message,
+        code: tokenResult.code,
+      });
     }
 
-    let user = await Customer.findOne({
-      $or: [
-        { phone: phoneNumber },
-        { phone: phoneNumber.slice(-10) }
-      ]
-    });
+    const firebasePhone = tokenResult.phone_number;
+    const tokenPhoneNorm = normalizePhone(firebasePhone);
+    const reqPhoneNorm = normalizePhone(phoneNumber);
+
+    if (tokenPhoneNorm && reqPhoneNorm && tokenPhoneNorm !== reqPhoneNorm) {
+      return res.status(401).send({
+        message: "Token phone number mismatch. Verification failed.",
+        code: "PHONE_MISMATCH",
+      });
+    }
+
+    const phoneToSearch = tokenPhoneNorm || reqPhoneNorm;
+    const variants = buildPhoneQueryVariants(phoneToSearch);
+    let user = await Customer.findOne({ phone: { $in: variants } });
 
     if (!user) {
       return res.status(404).send({
         message: "Account with this phone number does not exist. Please register first.",
         error: "USER_NOT_FOUND",
+        code: "PHONE_NOT_REGISTERED",
       });
     }
 
-    const token = signInToken(user);
-    res.send({
-      token,
-      _id: user._id,
-      name: user.name,
-      email: user.email,
-      phone: user.phone,
-      address: user.address || "",
-      image: user.image || "",
-      message: "Login Successful!",
-      role: user.role || "customer",
-    });
+    // Link verified UID safely if not already present
+    if (tokenResult.uid && user.firebaseUid !== tokenResult.uid) {
+      const otherHolder = await Customer.findOne({
+        firebaseUid: tokenResult.uid,
+        _id: { $ne: user._id },
+      });
+      if (!otherHolder) {
+        user.firebaseUid = tokenResult.uid;
+        await user.save();
+      }
+    }
+
+    await sendCustomerAuthResponse(res, user, "Login Successful!");
   } catch (err) {
     res.status(500).send({
       message: err.message,
@@ -568,36 +543,23 @@ const registerCustomerDirect = async (req, res) => {
     const { idToken, name, phone } = req.body;
 
     if (!idToken) {
-      return res.status(400).send({ message: "Firebase ID token is required." });
+      return res.status(400).send({
+        message: "Firebase ID token is required.",
+        code: "ID_TOKEN_REQUIRED",
+      });
     }
 
-    const admin = require("../config/firebase-admin");
-    let decodedToken;
-    try {
-      if (admin.apps.length > 0) {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
-      } else {
-        console.warn("Firebase Admin not initialized. Decoding token without verification.");
-        const parts = idToken.split('.');
-        if (parts.length !== 3) throw new Error("Invalid JWT format");
-        decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-      }
-    } catch (verifyErr) {
-      console.warn("Firebase verification failed, trying manual decode as fallback:", verifyErr.message);
-      try {
-        const parts = idToken.split('.');
-        if (parts.length === 3) {
-          decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        } else {
-          throw verifyErr;
-        }
-      } catch (fallbackErr) {
-        return res.status(401).send({ message: "Invalid or expired Firebase token." });
-      }
+    const tokenResult = await verifyFirebaseIdToken(idToken);
+    if (!tokenResult.ok) {
+      return res.status(tokenResult.status || 401).send({
+        message: tokenResult.message,
+        code: tokenResult.code,
+      });
     }
 
-    const { email, uid, phone_number } = decodedToken;
+    const { email, uid, phone_number } = tokenResult;
     const finalPhone = phone_number || phone;
+    const phone10 = normalizePhone(finalPhone);
 
     // Optional: block disposable email domains
     const disposableDomains = [
@@ -608,14 +570,28 @@ const registerCustomerDirect = async (req, res) => {
     if (domain && disposableDomains.includes(domain)) {
       return res.status(400).send({
         message: "Disposable email addresses are not allowed. Please use a real email.",
+        code: "DISPOSABLE_EMAIL_NOT_ALLOWED",
       });
     }
 
-    const isAdded = await Customer.findOne({ $or: [{ email }, { firebaseUid: uid }] });
+    const orConditions = [];
+    if (email && !isPlaceholderEmail(email)) {
+      orConditions.push({ email: email.toLowerCase().trim() });
+    }
+    if (uid) {
+      orConditions.push({ firebaseUid: uid });
+    }
+    if (phone10 && phone10.length >= 10) {
+      const phoneVariants = buildPhoneQueryVariants(phone10);
+      orConditions.push({ phone: { $in: phoneVariants } });
+    }
+
+    const isAdded = orConditions.length > 0 ? await Customer.findOne({ $or: orConditions }) : null;
 
     if (isAdded) {
       return res.status(403).send({
         message: "Email or Phone is already in use!",
+        code: "ACCOUNT_ALREADY_EXISTS",
       });
     }
 
@@ -1071,55 +1047,58 @@ const loginCustomer = async (req, res) => {
   try {
     const { idToken } = req.body;
     if (!idToken) {
-      return res.status(400).send({ message: "Firebase ID token is required." });
+      return res.status(400).send({
+        message: "Firebase ID token is required.",
+        code: "ID_TOKEN_REQUIRED",
+      });
     }
 
-    const admin = require("../config/firebase-admin");
-    let decodedToken;
-    try {
-      if (admin.apps.length > 0) {
-        decodedToken = await admin.auth().verifyIdToken(idToken);
-      } else {
-        console.warn("Firebase Admin not initialized. Decoding token without verification.");
-        const parts = idToken.split('.');
-        if (parts.length !== 3) throw new Error("Invalid JWT format");
-        decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-      }
-    } catch (verifyErr) {
-      console.warn("Firebase verification failed, trying manual decode as fallback:", verifyErr.message);
-      try {
-        const parts = idToken.split('.');
-        if (parts.length === 3) {
-          decodedToken = JSON.parse(Buffer.from(parts[1], 'base64').toString('utf8'));
-        } else {
-          throw verifyErr;
-        }
-      } catch (fallbackErr) {
-        return res.status(401).send({ message: "Invalid or expired Firebase token." });
+    const tokenResult = await verifyFirebaseIdToken(idToken);
+    if (!tokenResult.ok) {
+      return res.status(tokenResult.status || 401).send({
+        message: tokenResult.message,
+        code: tokenResult.code,
+      });
+    }
+
+    const { email, phone_number: phone, uid } = tokenResult;
+
+    // Deterministic lookup:
+    let customer = null;
+
+    // 1. Try by firebaseUid first
+    if (uid) {
+      customer = await Customer.findOne({ firebaseUid: uid });
+    }
+
+    // 2. If not found by UID and phone is available, query by phone variants
+    if (!customer && phone) {
+      const phoneNorm = normalizePhone(phone);
+      if (phoneNorm && phoneNorm.length >= 10) {
+        const variants = buildPhoneQueryVariants(phoneNorm);
+        customer = await Customer.findOne({ phone: { $in: variants } });
       }
     }
 
-    const { email, phone_number: phone, uid } = decodedToken;
-
-    // Try to find the user by Firebase UID, email, or phone
-    const queryConds = [];
-    if (uid) queryConds.push({ firebaseUid: uid });
-    if (email) queryConds.push({ email: email });
-    if (phone) queryConds.push({ phone: phone });
-    if (phone) queryConds.push({ phone: phone.slice(-10) });
-
-    let customer = await Customer.findOne({ $or: queryConds });
+    // 3. If not found and verified email is available, query by real email
+    if (!customer && email && !isPlaceholderEmail(email)) {
+      customer = await Customer.findOne({ email: email.toLowerCase().trim() });
+    }
 
     if (!customer) {
       return res.status(404).send({
         message: "Account does not exist. Please register first.",
         error: "USER_NOT_FOUND",
+        code: "USER_NOT_FOUND",
       });
     }
 
-    // Update firebaseUid if it was missing (for migration of existing users)
-    if (!customer.firebaseUid) {
-      customer.firebaseUid = uid;
+    // Update firebaseUid if it was missing (safe linking if no other customer holds it)
+    if (!customer.firebaseUid && uid) {
+      const otherHolder = await Customer.findOne({ firebaseUid: uid, _id: { $ne: customer._id } });
+      if (!otherHolder) {
+        customer.firebaseUid = uid;
+      }
     }
 
     // If the account is a wholesaler, check approval status
@@ -1275,188 +1254,183 @@ const signupPhone = async (req, res) => {
     if (!idToken && !masterOtp) {
       return res.status(400).send({
         message: "Firebase ID token is required.",
+        code: "ID_TOKEN_REQUIRED",
       });
     }
 
-    // ── MASTER OTP BYPASS ────────────────────────────────────────
+    // ── MASTER OTP BYPASS (ONLY FOR DEVELOPMENT) ─────────────────
     const MASTER_OTP = "841301";
-
     const isMasterBypass =
-      masterOtp === MASTER_OTP ||
-      idToken?.startsWith("MOCK_DEV_TOKEN_");
+      process.env.NODE_ENV === "development" &&
+      (masterOtp === MASTER_OTP || idToken?.startsWith("MOCK_DEV_TOKEN_"));
 
-    let uid;
-    let phoneNorm;
-    let tokenEmail = null;
+    let verifiedUid;
+    let verifiedPhone;
 
     if (isMasterBypass) {
-      // Direct bypass for development/testing.
-      // No Firebase verification is performed.
-      phoneNorm = normalizePhone(
-        bodyPhone || idToken?.replace("MOCK_DEV_TOKEN_", "")
-      );
-
+      const phoneNorm = normalizePhone(bodyPhone || idToken?.replace("MOCK_DEV_TOKEN_", ""));
       if (!phoneNorm || phoneNorm.length < 10) {
         return res.status(400).send({
-          message: "Valid phone number is required.",
+          message: "Valid 10-digit phone number is required.",
+          code: "INVALID_PHONE_FORMAT",
+        });
+      }
+      verifiedUid = `dev_user_${phoneNorm}`;
+      verifiedPhone = toE164(phoneNorm);
+      console.warn(`[DEV] Master OTP bypass used for phone: ${phoneNorm}`);
+    } else {
+      // ── STANDARD SECURE FIREBASE VERIFICATION ──────────────────
+      const tokenResult = await verifyFirebaseIdToken(idToken);
+      if (!tokenResult.ok) {
+        return res.status(tokenResult.status || 401).send({
+          message: tokenResult.message,
+          code: tokenResult.code,
         });
       }
 
-      uid = `dev_user_${phoneNorm}`;
+      verifiedUid = tokenResult.uid;
+      verifiedPhone = tokenResult.phone_number || bodyPhone;
 
-      console.warn(
-        `[DEV] Master OTP bypass used for phone: ${phoneNorm}`
-      );
-    } else {
-      // ── STANDARD FIREBASE VERIFICATION ─────────────────────────
-
-      const admin = require("../config/firebase-admin");
-
-      let decodedToken;
-
-      try {
-        if (admin.apps.length > 0) {
-          decodedToken = await admin.auth().verifyIdToken(idToken);
-        } else {
-          console.warn(
-            "Firebase Admin not initialized. Decoding token without verification."
-          );
-
-          const parts = idToken.split(".");
-
-          if (parts.length !== 3) {
-            throw new Error("Invalid JWT format");
-          }
-
-          decodedToken = JSON.parse(
-            Buffer.from(parts[1], "base64").toString("utf8")
-          );
-        }
-      } catch (verifyErr) {
-        console.warn(
-          "Firebase verification failed, trying manual decode as fallback:",
-          verifyErr.message
-        );
-
-        try {
-          const parts = idToken.split(".");
-
-          if (parts.length === 3) {
-            decodedToken = JSON.parse(
-              Buffer.from(parts[1], "base64").toString("utf8")
-            );
-          } else {
-            throw verifyErr;
-          }
-        } catch (fallbackErr) {
-          return res.status(401).send({
-            message: "Invalid or expired Firebase token.",
-          });
-        }
-      }
-
-      const {
-        email: decodedEmail,
-        phone_number: decodedPhone,
-        uid: decodedUid,
-      } = decodedToken;
-
-      tokenEmail = decodedEmail;
-      uid = decodedUid;
-
-      phoneNorm = normalizePhone(
-        decodedPhone || bodyPhone
-      );
-
-      if (!phoneNorm || phoneNorm.length < 10) {
+      if (!verifiedPhone) {
         return res.status(400).send({
-          message: "Valid phone number is required.",
+          message: "Phone number could not be verified from token.",
+          code: "PHONE_NUMBER_MISSING",
         });
       }
     }
 
-    // ── CUSTOMER LOOKUP ─────────────────────────────────────────
-
-    const queryConds = [
-      { firebaseUid: uid },
-      { phone: phoneNorm },
-    ];
-
-    if (tokenEmail) {
-      queryConds.push({
-        email: tokenEmail.toLowerCase(),
+    const phone10 = normalizePhone(verifiedPhone);
+    if (!phone10 || phone10.length < 10) {
+      return res.status(400).send({
+        message: "Valid 10-digit phone number is required.",
+        code: "INVALID_PHONE_FORMAT",
       });
     }
 
-    queryConds.push({
-      email: buildPlaceholderEmail(phoneNorm),
-    });
+    // ── DETERMINISTIC CUSTOMER RESOLUTION ────────────────────────
+    const phoneVariants = buildPhoneQueryVariants(phone10);
+    const matchingCustomers = await Customer.find({ phone: { $in: phoneVariants } });
 
-    let customer = await Customer.findOne({
-      $or: queryConds,
-    });
+    let customer = null;
+
+    if (matchingCustomers.length > 1) {
+      // Multiple records exist for this phone number
+      // 1. Prefer customer matching verifiedUid
+      customer = matchingCustomers.find((c) => c.firebaseUid === verifiedUid);
+
+      // 2. If not found, pick the verified / completed profile
+      if (!customer) {
+        customer =
+          matchingCustomers.find((c) => c.phoneVerified && c.profileComplete) ||
+          matchingCustomers.find((c) => c.phoneVerified) ||
+          matchingCustomers[0];
+      }
+    } else if (matchingCustomers.length === 1) {
+      customer = matchingCustomers[0];
+    }
 
     let isNewUser = false;
 
-    // ── SIGNUP / LOGIN VALIDATION ────────────────────────────────
+    // ── SIGNUP / LOGIN VALIDATION & LINKING ──────────────────────
+    if (customer) {
+      if (intent === "signup" && customer.phoneVerified) {
+        return res.status(409).send({
+          message: "This mobile number is already registered. Please login instead.",
+          code: "PHONE_ALREADY_REGISTERED",
+        });
+      }
 
-    if (intent === "signup" && customer) {
-      return res.status(409).send({
-        message:
-          "This mobile number is already registered. Please login instead.",
-        code: "PHONE_ALREADY_REGISTERED",
-      });
-    }
+      // Check if another customer is already holding this verifiedUid
+      if (verifiedUid && customer.firebaseUid !== verifiedUid) {
+        const otherCustomerWithUid = await Customer.findOne({
+          firebaseUid: verifiedUid,
+          _id: { $ne: customer._id },
+        });
 
-    if (intent === "login" && !customer) {
-      return res.status(404).send({
-        message:
-          "No account found with this number. Please sign up first.",
-        code: "PHONE_NOT_REGISTERED",
-      });
-    }
+        if (otherCustomerWithUid) {
+          console.warn(
+            `[AUTH] Identity conflict: UID ${verifiedUid} is already linked to another customer ${otherCustomerWithUid._id} with phone ${otherCustomerWithUid.phone}`
+          );
+          return res.status(409).send({
+            message: "Authentication conflict: This phone identity is associated with another record. Please contact support.",
+            code: "PHONE_ACCOUNT_IDENTITY_CONFLICT",
+          });
+        }
 
-    // ── CREATE CUSTOMER ─────────────────────────────────────────
+        // Safely link the verified Firebase UID
+        customer.firebaseUid = verifiedUid;
+      }
 
-    if (!customer) {
+      // Ensure normalized phone and phoneVerified are set
+      customer.phone = phone10;
+      customer.phoneVerified = true;
+      if (!customer.authProvider) customer.authProvider = "phone";
+      customer.lastLogin = new Date();
+      await customer.save();
+    } else {
+      // No customer found with this phone number
+      // Check if verifiedUid belongs to an existing customer with a DIFFERENT phone number
+      if (verifiedUid) {
+        const existingWithUid = await Customer.findOne({ firebaseUid: verifiedUid });
+        if (existingWithUid) {
+          console.warn(
+            `[AUTH] UID ${verifiedUid} previously linked to phone ${existingWithUid.phone}. Unlinking stale UID before creating account for ${phone10}.`
+          );
+          existingWithUid.firebaseUid = undefined;
+          await existingWithUid.save();
+        }
+      }
+
+      if (intent === "login") {
+        return res.status(404).send({
+          message: "No account found with this number. Please sign up first.",
+          code: "PHONE_NOT_REGISTERED",
+        });
+      }
+
+      // Create new Customer
       isNewUser = true;
+      const myReferralCode = "FK" + Math.random().toString(36).substring(2, 8).toUpperCase();
+      let referredBy = undefined;
+
+      if (req.body.referralCode) {
+        const referrer = await Customer.findOne({ referralCode: req.body.referralCode });
+        if (referrer) {
+          referredBy = referrer._id;
+        }
+      }
 
       customer = new Customer({
-        name: req.body.name || "Customer",
-        phone: phoneNorm,
-        firebaseUid: uid,
+        name: req.body.name || `User ${phone10.slice(-4)}`,
+        phone: phone10,
+        email: buildPlaceholderEmail(phone10),
+        firebaseUid: verifiedUid,
         role: "customer",
         phoneVerified: true,
         profileComplete: false,
         authProvider: "phone",
         emailVerified: false,
+        referralCode: myReferralCode,
+        referredBy,
       });
 
       await customer.save();
-    } else {
-      customer.firebaseUid = uid;
-      customer.phoneVerified = true;
 
-      if (!customer.phone) {
-        customer.phone = phoneNorm;
+      if (referredBy) {
+        const Referral = require("../models/Referral");
+        await new Referral({
+          referrer: referredBy,
+          referredUser: customer._id,
+          status: "pending",
+        }).save();
       }
-
-      if (!customer.authProvider) {
-        customer.authProvider = "phone";
-      }
-
-      customer.lastLogin = new Date();
-
-      await customer.save();
     }
 
     // ── WHOLESALER CHECK ─────────────────────────────────────────
-
     if (customer.role === "wholesaler") {
       if (customer.wholesalerStatus === "pending") {
         return res.status(403).send({
-          message:
-            "Your account is currently under verification. You will be notified once approved.",
+          message: "Your account is currently under verification. You will be notified once approved.",
           wholesalerStatus: "pending",
         });
       }
@@ -1470,24 +1444,23 @@ const signupPhone = async (req, res) => {
     }
 
     // ── AUTH RESPONSE ───────────────────────────────────────────
-
     await sendCustomerAuthResponse(
       res,
       customer,
       isNewUser ? "Account created!" : "Login Successful!",
-      {
-        isNewUser,
-      }
+      { isNewUser }
     );
   } catch (err) {
     if (err.code === 11000) {
-      return res.status(403).send({
+      return res.status(409).send({
         message: "Phone or email already registered.",
+        code: "DUPLICATE_KEY_ERROR",
       });
     }
 
+    console.error("signupPhone error:", err);
     res.status(500).send({
-      message: err.message,
+      message: err.message || "Authentication failed.",
     });
   }
 };

@@ -1,6 +1,8 @@
 import Cookies from "js-cookie";
 import { useSession, signOut } from "next-auth/react";
 import React, { createContext, useEffect, useReducer, useCallback } from "react";
+import { signOut as firebaseSignOut } from "firebase/auth";
+import { auth as firebaseAuth } from "@lib/firebase";
 
 import { setToken } from "@services/httpServices";
 
@@ -74,6 +76,13 @@ export const UserProvider = ({ children }) => {
       await signOut({ redirect: false });
     } catch (err) {
       console.warn("signOut error:", err);
+    }
+    if (firebaseAuth) {
+      try {
+        await firebaseSignOut(firebaseAuth);
+      } catch (fErr) {
+        console.warn("Firebase signOut error:", fErr);
+      }
     }
     Cookies.remove("userInfo");
     Cookies.remove("couponInfo");
