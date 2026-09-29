@@ -63,6 +63,39 @@ const buildTransactionalHeaders = (emailType) => {
   return headers;
 };
 
+const formatResendFrom = (rawFrom = "") => {
+  let str = String(rawFrom || "").trim().replace(/^["']|["']$/g, "");
+  if (!str) {
+    return "Farmacykart <onboarding@resend.dev>";
+  }
+
+  const angleMatch = str.match(/^(.*?)\s*<([^>]+)>$/);
+  let name = "Farmacykart";
+  let email = str;
+
+  if (angleMatch) {
+    name = angleMatch[1].trim() || "Farmacykart";
+    email = angleMatch[2].trim();
+  }
+
+  // If email is missing '@' (e.g. info.farmacykart.com), fix common typo
+  if (!email.includes("@")) {
+    if (email.includes(".")) {
+      const firstDot = email.indexOf(".");
+      email = email.slice(0, firstDot) + "@" + email.slice(firstDot + 1);
+    } else {
+      email = "onboarding@resend.dev";
+    }
+  }
+
+  // Public domains like @gmail.com cannot be used on Resend without domain verification
+  if (/@(gmail|yahoo|outlook|hotmail|icloud|live)\.com/i.test(email)) {
+    return `${name} <onboarding@resend.dev>`;
+  }
+
+  return `${name} <${email}>`;
+};
+
 const prepareMailOptions = (body = {}) => {
   const useResend = isResendConfigured();
 
@@ -72,7 +105,7 @@ const prepareMailOptions = (body = {}) => {
 
   if (useResend && !process.env.RESEND_FROM) {
     throw new Error(
-      "RESEND_FROM is required (e.g. Farmacykart <notify@farmacykart.com>)"
+      "RESEND_FROM is required (e.g. Farmacykart <onboarding@resend.dev>)"
     );
   }
 
@@ -80,7 +113,7 @@ const prepareMailOptions = (body = {}) => {
   const replyTo = getDefaultReplyTo();
 
   if (useResend) {
-    mail.from = process.env.RESEND_FROM;
+    mail.from = formatResendFrom(process.env.RESEND_FROM);
   } else {
     const fromName = process.env.EMAIL_FROM_NAME || "Farmacykart";
     mail.from = `"${fromName}" <${process.env.EMAIL_USER}>`;

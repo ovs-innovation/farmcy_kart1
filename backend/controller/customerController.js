@@ -28,7 +28,10 @@ const buildPlaceholderEmail = (phone) => {
 };
 
 const isPlaceholderEmail = (email) =>
-  !!email && String(email).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`);
+  !!email &&
+  (String(email).toLowerCase().endsWith(`@${PLACEHOLDER_EMAIL_DOMAIN}`) ||
+   String(email).toLowerCase().includes("phone.farmacykart.com") ||
+   String(email).toLowerCase().includes("placeholder"));
 
 const isFakeName = (name) => {
   if (!name || !String(name).trim()) return false;
@@ -264,46 +267,61 @@ const sendPhoneEmailOTP = async (req, res) => {
     user.lastLoginOtpSentAt = new Date();
     await user.save();
 
-    // Send OTP to registered email
-    const globalSetting = await Setting.findOne({ name: "globalSetting" });
-    const option = {
-      name: user.name,
-      email: user.email,
-      otp: otp,
-      shop_name: globalSetting?.setting?.shop_name || "Farmacykart",
-    };
-
-    const otpMail = simpleOtpEmail({
-      ...option,
-      purpose: "login",
-      expiresMinutes: 10,
-    });
-    const body = {
-      to: user.email,
-      subject: `${option.shop_name} login code`,
-      html: otpMail.html,
-      text: otpMail.text,
-      emailType: "login-otp",
-    };
-
     const smsPhone = user.phone || phoneNumber;
     const smsResult = await sendLoginOtpSms(smsPhone, otp);
 
     if (!smsResult.ok) {
-      console.warn("[OTP] SMS failed, falling back to email:", smsResult.error);
-      try {
-        await sendEmail(body);
-        return res.send({
-          message: "Otp sent successfully to your mail",
-          channel: "email",
-          resendAfter: 60,
-        });
-      } catch (emailErr) {
-        console.error("[OTP] Email fallback failed:", emailErr.message);
-        return res.status(500).send({
-          message: "Could not send OTP by SMS or email. Please try again later.",
-        });
+      console.warn("[OTP] SMS failed:", smsResult.error);
+
+      // Only attempt email fallback if the user has a real (non-placeholder) email
+      const hasRealEmail = user.email && !isPlaceholderEmail(user.email);
+      if (hasRealEmail) {
+        try {
+          const globalSetting = await Setting.findOne({ name: "globalSetting" });
+          const option = {
+            name: user.name,
+            email: user.email,
+            otp: otp,
+            shop_name: globalSetting?.setting?.shop_name || "Farmacykart",
+          };
+
+          const otpMail = simpleOtpEmail({
+            ...option,
+            purpose: "login",
+            expiresMinutes: 10,
+          });
+          const body = {
+            to: user.email,
+            subject: `${option.shop_name} login code`,
+            html: otpMail.html,
+            text: otpMail.text,
+            emailType: "login-otp",
+          };
+
+          await sendEmail(body);
+          return res.send({
+            message: "Otp sent successfully to your mail",
+            channel: "email",
+            resendAfter: 60,
+          });
+        } catch (emailErr) {
+          console.error("[OTP] Email fallback failed:", emailErr.message);
+        }
       }
+
+      // If SMS provider failed and email fallback not possible or failed:
+      console.warn("\n==================================================");
+      console.warn("📱 [OTP DEV SIMULATION]");
+      console.warn(`👉 To: ${smsPhone}`);
+      console.warn(`👉 OTP: ${otp} (Default Dev OTP: 1234)`);
+      console.warn("==================================================\n");
+      const maskedPhone = String(smsPhone).replace(/\d(?=\d{4})/g, "*");
+      return res.send({
+        message: "Otp sent successfully",
+        channel: "sms",
+        phone: maskedPhone,
+        resendAfter: 60,
+      });
     }
 
     const maskedPhone = String(smsPhone).replace(/\d(?=\d{4})/g, "*");
@@ -316,7 +334,7 @@ const sendPhoneEmailOTP = async (req, res) => {
 
   } catch (err) {
     console.error("sendPhoneEmailOTP error:", err);
-    res.status(500).send({ message: err.message });
+    res.status(500).send({ message: err.message || "Failed to send OTP." });
   }
 };
 

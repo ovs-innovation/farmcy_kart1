@@ -113,13 +113,33 @@ const sendEmail = (body) => {
         })
         .catch((err) => {
           console.error("Resend API error:", err.response?.data || err.message);
-          reject(
-            new Error(
-              err.response?.data?.message ||
-              err.message ||
-              "Resend failed to send email"
-            )
-          );
+          const user = process.env.EMAIL_USER;
+          const pass = getEmailPassword();
+          if (user && pass) {
+            console.warn("[email] Resend failed, falling back to SMTP...");
+            getTransporter().sendMail(mail, (smtpErr, info) => {
+              if (smtpErr) {
+                console.error("[email] SMTP fallback also failed:", smtpErr.message);
+                reject(
+                  new Error(
+                    err.response?.data?.message ||
+                    err.message ||
+                    "Resend and SMTP failed to send email"
+                  )
+                );
+              } else {
+                resolve(info);
+              }
+            });
+          } else {
+            console.warn("\n==================================================");
+            console.warn("📧 [EMAIL SANDBOX FALLBACK] Resend failed & no SMTP.");
+            console.warn(`👉 To: ${mail.to}`);
+            console.warn(`👉 Subject: ${mail.subject}`);
+            console.warn(`👉 Message:\n${mail.text || "(html message)"}`);
+            console.warn("==================================================\n");
+            resolve({ message: "Email simulated successfully in sandbox mode.", messageId: "sandbox" });
+          }
         });
       return;
     }

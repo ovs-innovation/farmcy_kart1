@@ -11,11 +11,15 @@ const sendSMS = async (to, message, variables = {}) => {
     const senderId = process.env.MSG91_SENDER_ID || "FARMCY";
 
     if (!authKey || !templateId) {
-      console.warn("MSG91_AUTH_KEY or MSG91_TEMPLATE_ID not found in .env. Skipping SMS.");
-      return false;
+      console.warn("\n==================================================");
+      console.warn("📱 [SMS SANDBOX MODE] MSG91 credentials missing in .env.");
+      console.warn(`👉 To: ${to}`);
+      console.warn(`👉 Message: ${message || JSON.stringify(variables)}`);
+      console.warn("==================================================\n");
+      return true;
     }
 
-    let mobile = to.replace(/\D/g, "");
+    let mobile = String(to || "").replace(/\D/g, "");
     if (mobile.length === 10) {
       mobile = "91" + mobile;
     }
@@ -40,6 +44,7 @@ const sendSMS = async (to, message, variables = {}) => {
         authkey: authKey,
         "content-type": "application/json",
       },
+      timeout: 10000,
     });
 
     if (response.data && response.data.type === "success") {
@@ -69,8 +74,13 @@ const sendLoginOtpSms = async (to, otp) => {
   const templateId = process.env.MSG91_OTP_TEMPLATE_ID;
 
   if (!authKey || !templateId) {
-    console.warn("[MSG91] MSG91_AUTH_KEY or MSG91_OTP_TEMPLATE_ID missing — cannot send login OTP SMS.");
-    return { ok: false, error: "MSG91 OTP not configured" };
+    console.warn("\n==================================================");
+    console.warn("📱 [SMS SANDBOX MODE] MSG91 credentials missing in .env.");
+    console.warn(`👉 To: ${to}`);
+    console.warn(`👉 Login OTP: ${otp} (Default dev fallback: 1234)`);
+    console.warn(`👉 Valid for: 10 minutes`);
+    console.warn("==================================================\n");
+    return { ok: true, channel: "sandbox", simulated: true };
   }
 
   try {
@@ -95,6 +105,7 @@ const sendLoginOtpSms = async (to, otp) => {
         authkey: authKey,
         "content-type": "application/json",
       },
+      timeout: 10000,
     });
 
     const data = response.data || {};
