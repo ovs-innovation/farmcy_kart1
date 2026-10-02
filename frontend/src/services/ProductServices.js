@@ -78,6 +78,60 @@ const ProductServices = {
   getProductBySlug: async (slug) => {
     return requests.get(`/products/${slug}`);
   },
+  // Enterprise Search API
+  searchProducts: async ({
+    query = "",
+    category = "",
+    brand = "",
+    minPrice,
+    maxPrice,
+    rating,
+    discount,
+    inStock,
+    sort = "relevance",
+    page = 1,
+    limit = 20,
+    signal,
+  } = {}) => {
+    try {
+      const params = new URLSearchParams();
+      if (query) params.append("q", query);
+      if (category) params.append("category", category);
+      if (brand) params.append("brand", brand);
+      if (minPrice !== undefined && minPrice !== "") params.append("minPrice", minPrice);
+      if (maxPrice !== undefined && maxPrice !== "") params.append("maxPrice", maxPrice);
+      if (rating) params.append("rating", rating);
+      if (discount) params.append("discount", discount);
+      if (inStock) params.append("inStock", inStock);
+      if (sort) params.append("sort", sort);
+      if (page) params.append("page", page);
+      if (limit) params.append("limit", limit);
+
+      const res = await requests.get(`/products/search?${params.toString()}`, { signal });
+      return res || { products: [], totalDoc: 0, totalPages: 1 };
+    } catch (error) {
+      if (error?.name === "CanceledError" || error?.code === "ERR_CANCELED") {
+        throw error;
+      }
+      return { products: fallbackProducts, totalDoc: fallbackProducts.length, totalPages: 1 };
+    }
+  },
+  // Fast Autocomplete Suggestions API
+  getAutocompleteSuggestions: async (query = "", signal) => {
+    try {
+      if (!query || query.trim().length < 2) return { query, suggestions: [] };
+      const res = await requests.get(
+        `/products/autocomplete?q=${encodeURIComponent(query.trim())}`,
+        { signal }
+      );
+      return res || { query, suggestions: [] };
+    } catch (error) {
+      if (error?.name === "CanceledError" || error?.code === "ERR_CANCELED") {
+        throw error;
+      }
+      return { query, suggestions: [] };
+    }
+  },
   // Track product view
   addProductView: async (body) => {
     return requests.post("/products/view", body);

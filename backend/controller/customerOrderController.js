@@ -30,6 +30,7 @@ const {
 const { newOrderAdminEmailBody } = require("../lib/email-sender/templates/order-to-admin/new-order");
 const { sendSMS } = require("../lib/sms-sender/sender");
 const { populateCartTaxFields, enrichOrderItemsForShiprocket } = require("../utils/cartTaxUtils");
+const { mapShiprocketAddressFields } = require("../utils/shiprocketAddressMapper");
 const OrderEmailService = require("../services/OrderEmailService");
 const {
   assertCustomerProfileForOrder,
@@ -474,8 +475,12 @@ const createShiprocketOrderForOrder = async (order) => {
     city = "",
     state = "",
     country = "India",
-    zipCode = "000000",
-  } = order.user_info;
+    zipCode = "",
+    pincode = "",
+  } = order.user_info || {};
+
+  const cleanPincode = String(zipCode || pincode || "").replace(/\D/g, "");
+  const deliveryPincode = cleanPincode.length === 6 ? cleanPincode : (process.env.SHIPROCKET_PICKUP_PINCODE || "110094");
 
   const [firstName = "", ...restName] = name.trim().split(" ");
   const lastName = restName.join(" ") || "";
@@ -487,20 +492,20 @@ const createShiprocketOrderForOrder = async (order) => {
     selling_price: (item.price || item.unit_price || 0).toString(),
     discount: item.discount || "",
     tax: item.tax || "",
-    hsn: item.hsn || "3305",
+    hsn: item.hsn || process.env.SHIPROCKET_DEFAULT_HSN || "3004",
   }));
 
   const normalizedOrderItems = await enrichOrderItemsForShiprocket(orderItems, order.cart);
 
-  const payload = {
+  const rawPayload = {
     order_id: String(order.invoice || order._id),
     order_date: dayjs(order.createdAt || new Date()).format("YYYY-MM-DD"),
-    pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION || "home",
+    pickup_location: process.env.SHIPROCKET_PICKUP_LOCATION || "work",
     billing_customer_name: firstName || name || "Customer",
     billing_last_name: lastName,
     billing_address: address || "Default Address",
     billing_city: city || "City",
-    billing_pincode: zipCode || "000000",
+    billing_pincode: deliveryPincode,
     billing_state: state || city || "State",
     billing_country: country || "India",
     billing_email: email || "customer@farmacykart.com",
@@ -510,7 +515,7 @@ const createShiprocketOrderForOrder = async (order) => {
     shipping_last_name: lastName,
     shipping_address: address || "Default Address",
     shipping_city: city || "City",
-    shipping_pincode: zipCode || "000000",
+    shipping_pincode: deliveryPincode,
     shipping_country: country || "India",
     shipping_state: state || city || "State",
     shipping_email: email || "customer@farmacykart.com",
@@ -525,6 +530,8 @@ const createShiprocketOrderForOrder = async (order) => {
     height: 2,
     weight: 0.5,
   };
+
+  const payload = mapShiprocketAddressFields(rawPayload);
 
   const response = await shiprocketRequest("post", "v1/external/orders/create/adhoc", payload);
 

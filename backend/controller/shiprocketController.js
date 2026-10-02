@@ -96,7 +96,7 @@ async function buildShiprocketPayload(rawPayload = {}, orderId = null) {
     order_date: "",
     pickup_location:
       process.env.SHIPROCKET_PICKUP_LOCATION ||
-      "home",
+      "work",
     comment: "",
     reseller_name: "",
     company_name: "",

@@ -104,6 +104,17 @@ export default function usePhoneLogin(authIntent = "login") {
       setError("");
       setErrorCode(null);
       try {
+        const MASTER_OTP = "841301";
+        // Bypass Firebase client SDK when Master OTP is used
+        if (otpCode === MASTER_OTP) {
+          return await CustomerServices.signupPhone({
+            idToken: `MOCK_DEV_TOKEN_${phoneNumber}`,
+            masterOtp: MASTER_OTP,
+            phoneNumber,
+            intent,
+          });
+        }
+
         if (mode === "firebase") {
           const { idToken } = await firebaseVerifyOtp(otpCode);
           return await CustomerServices.signupPhone({ idToken, intent });

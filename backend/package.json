@@ -10,11 +10,13 @@
     "test": "echo \"Error: no test specified\" && exit 1",
     "data:import": "node script/seed.js",
     "product": "node script/product.js",
-    "generate-password": "node script/script.js"
+    "generate-password": "node script/script.js",
+    "search:reindex": "node scripts/reindexElasticsearch.js"
   },
   "author": "HtmlLover",
   "license": "Regular",
   "dependencies": {
+    "@elastic/elasticsearch": "^8.13.1",
     "@paypal/checkout-server-sdk": "^1.0.3",
     "axios": "^1.6.7",
     "bcryptjs": "^2.4.3",

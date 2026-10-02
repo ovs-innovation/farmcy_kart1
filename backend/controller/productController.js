@@ -3,6 +3,8 @@ const mongoose = require("mongoose");
 const Category = require("../models/Category");
 const Brand = require("../models/Brand");
 const UserProductView = require("../models/UserProductView");
+const searchService = require("../services/searchService");
+const indexingService = require("../services/indexingService");
 const { languageCodes } = require("../utils/data");
 const { formatProductForCSV,
   formatCSVToProduct,
@@ -355,10 +357,71 @@ const addProduct = async (req, res) => {
     const newProduct = new Product(payload);
 
     await newProduct.save();
+    indexingService.syncProduct(newProduct);
     res.send(newProduct);
   } catch (err) {
     res.status(500).send({
       message: err.message,
+    });
+  }
+};
+
+const searchProducts = async (req, res) => {
+  try {
+    const {
+      q,
+      query,
+      category,
+      brand,
+      minPrice,
+      maxPrice,
+      rating,
+      discount,
+      inStock,
+      status = "show",
+      sort = "relevance",
+      page = 1,
+      limit = 20,
+    } = req.query;
+
+    const searchTerm = q || query || "";
+    const results = await searchService.searchProducts({
+      query: searchTerm,
+      category,
+      brand,
+      minPrice,
+      maxPrice,
+      rating,
+      discount,
+      inStock: inStock === "true" || inStock === true,
+      status,
+      sort,
+      page,
+      limit,
+    });
+
+    res.status(200).json(results);
+  } catch (err) {
+    console.error("Search Products Controller Error:", err);
+    res.status(500).json({
+      message: err.message || "Failed to search products",
+      products: [],
+      totalDoc: 0,
+    });
+  }
+};
+
+const autocompleteProducts = async (req, res) => {
+  try {
+    const { q, query } = req.query;
+    const searchTerm = q || query || "";
+    const suggestions = await searchService.autocomplete(searchTerm);
+    res.status(200).json(suggestions);
+  } catch (err) {
+    console.error("Autocomplete Controller Error:", err);
+    res.status(200).json({
+      query: req.query.q || req.query.query || "",
+      suggestions: [],
     });
   }
 };
@@ -371,7 +434,8 @@ const addAllProducts = async (req, res) => {
       ...doc,
       ...normalizeTaxPayload(doc),
     }));
-    await Product.insertMany(sanitizedDocs);
+    const inserted = await Product.insertMany(sanitizedDocs);
+    indexingService.bulkSyncProducts(inserted);
     res.status(200).send({
       message: "Product Added successfully!",
     });
@@ -397,7 +461,27 @@ const getShowingProducts = async (req, res) => {
 const getAllProducts = async (req, res) => {
   const { title, category, price, page, limit, brand, status } = req.query;
 
-  // console.log("getAllProducts");
+  if (title) {
+    try {
+      const searchRes = await searchService.searchProducts({
+        query: title,
+        category,
+        brand,
+        status: status === "published" ? "show" : status === "unPublished" || status === "unpublished" ? "hide" : "",
+        sort: price === "low" ? "price-low" : price === "high" ? "price-high" : price === "date-added-asc" ? "date-added-asc" : price === "date-added-desc" ? "newest" : "relevance",
+        page: page || 1,
+        limit: limit || 20,
+      });
+      return res.send({
+        products: searchRes.products,
+        totalDoc: searchRes.totalDoc,
+        limits: searchRes.limits,
+        pages: searchRes.pages,
+      });
+    } catch (searchErr) {
+      console.warn("Elasticsearch getAllProducts fallback:", searchErr.message);
+    }
+  }
 
   let queryObject = {};
   let sortObject = {};
@@ -628,6 +712,7 @@ const updateProduct = async (req, res) => {
       }
 
       await product.save();
+      indexingService.syncProduct(product);
       res.send({ data: product, message: "Product updated successfully!" });
     } else {
       res.status(404).send({
@@ -665,6 +750,9 @@ const updateManyProducts = async (req, res) => {
         multi: true,
       }
     );
+    if (Array.isArray(req.body.ids)) {
+      req.body.ids.forEach((id) => indexingService.syncProduct(id));
+    }
     res.send({
       message: "Products update successfully!",
     });
@@ -690,6 +778,7 @@ const updateStatus = (req, res) => {
           message: err.message,
         });
       } else {
+        indexingService.syncProduct(req.params.id);
         res.status(200).send({
           message: `Product ${newStatus} Successfully!`,
         });
@@ -705,6 +794,7 @@ const deleteProduct = (req, res) => {
         message: err.message,
       });
     } else {
+      indexingService.deleteProduct(req.params.id);
       res.status(200).send({
         message: "Product Deleted Successfully!",
       });
@@ -717,10 +807,29 @@ const getShowingStoreProducts = async (req, res) => {
   try {
     const queryObject = { status: "show" };
 
-    // console.log("getShowingStoreProducts");
-
     const { category, title, slug, brand } = req.query;
-    // console.log("title", title);
+
+    if (title) {
+      try {
+        const searchResult = await searchService.searchProducts({
+          query: title,
+          category,
+          brand,
+          status: "show",
+          page: 1,
+          limit: 500,
+        });
+        return res.send({
+          products: searchResult.products,
+          popularProducts: [],
+          relatedProducts: [],
+          discountedProducts: [],
+          bestSellingProducts: [],
+        });
+      } catch (searchErr) {
+        console.warn("Elasticsearch getShowingStoreProducts fallback:", searchErr.message);
+      }
+    }
 
     // console.log("query", req);
     if (category) {
@@ -921,6 +1030,7 @@ const deleteManyProducts = async (req, res) => {
     // console.log("deleteMany", cname, req.body.ids);
 
     await Product.deleteMany({ _id: req.body.ids });
+    indexingService.bulkDeleteProducts(req.body.ids);
 
     res.send({
       message: `Products Delete Successfully!`,
@@ -1286,6 +1396,7 @@ const importProductsCSV = async (req, res) => {
     // Insert products
     try {
       const result = await Product.insertMany(sanitizedDocs, { ordered: false });
+      indexingService.bulkSyncProducts(result);
       res.status(201).json({
         message: `${result.length} products imported successfully!`,
         count: result.length,
@@ -1314,6 +1425,8 @@ const importProductsCSV = async (req, res) => {
 };
 
 module.exports = {
+  searchProducts,
+  autocompleteProducts,
   addProductView,
   getRecommendations,
   addProduct,

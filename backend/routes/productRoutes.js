@@ -5,6 +5,8 @@ const { isAuthOptional, isAuth, isAdmin } = require("../config/auth");
 const {
     exportProductsCSV,
     importProductsCSV,
+  searchProducts,
+  autocompleteProducts,
   addProductView,
   getRecommendations,
   addProduct,
@@ -36,11 +38,22 @@ const recommendationLimiter = rateLimit({
   legacyHeaders: false,
 });
 
+const searchLimiter = rateLimit({
+  windowMs: 60 * 1000, // 1 minute
+  max: 120, // Limit each IP to 120 search queries per minute
+  standardHeaders: true,
+  legacyHeaders: false,
+});
+
 // ================= EXPORT ROUTE FIRST =================
 router.get("/export/csv", exportProductsCSV);
 
 // ================= IMPORT ROUTE =================
 router.post("/import/csv", isAuth, isAdmin, importProductsCSV);
+
+// ================= ENTERPRISE SEARCH & AUTOCOMPLETE ROUTES =================
+router.get("/search", searchLimiter, searchProducts);
+router.get("/autocomplete", searchLimiter, autocompleteProducts);
 
 //add a product
 router.post("/add", isAuth, isAdmin, addProduct);

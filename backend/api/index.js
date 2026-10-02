@@ -10,6 +10,7 @@ const path = require("path");
 // const { Server } = require("socket.io");
 
 const { connectDB } = require("../config/db");
+const searchService = require("../services/searchService");
 const productRoutes = require("../routes/productRoutes");
 const customerRoutes = require("../routes/customerRoutes");
 const adminRoutes = require("../routes/adminRoutes");
@@ -73,6 +74,11 @@ connectDB().catch((err) => {
     err.message,
   );
 });
+
+searchService.ensureIndexExists().catch((err) => {
+  console.warn("⚠️  Elasticsearch index check deferred:", err.message);
+});
+
 const app = express();
 
 // We are using this for the express-rate-limit middleware
@@ -98,7 +104,9 @@ const allowedOrigins = process.env.FRONTEND_URL
     "http://127.0.0.1:5055",
     "exp://192.168.1.6:8081",
     "exp://192.168.1.6:8082",
-    "http://localhost:5000"
+    "http://localhost:5000",
+    "http://localhost:8092"
+
   ].filter(Boolean)
   : [
     "http://localhost:3000",
@@ -180,6 +188,7 @@ app.use("/api/refund", refundRoutes);
 app.use("/api/push-notification", pushNotificationRoutes);
 app.use("/api/customer-notifications", customerNotificationRoutes);
 app.use("/api/webhooks", webhookRoutes);
+app.use("/api/webhook", webhookRoutes);
 app.use("/api/return-request", returnRequestRoutes);
 app.use("/api/referral", referralRoutes);
 //if you not use admin dashboard then these two route will not needed.

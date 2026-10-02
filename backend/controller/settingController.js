@@ -25,7 +25,8 @@ const getGlobalSetting = async (req, res) => {
     const setting = globalSetting.setting || {};
     setting.default_currency = "₹";
     setting.company_name = "AQOSU FARMACYKART PRIVATE LIMITED";
-    setting.address = "GF D-90, KH NO-1100, RAJNAGAR COLONY, BEHTA HAJIPUR, LONI BORDER, LONI, GHAZIABAD, UTTAR PRADESH, Landmark: NEAR MUNISH PUBLIC, Pin: 201102";
+    setting.address =
+      "GF D-90, KH NO-1100, RAJNAGAR COLONY, BEHTA HAJIPUR, LONI BORDER, LONI, GHAZIABAD, UTTAR PRADESH, Landmark: NEAR MUNISH PUBLIC, Pin: 201102";
     setting.shop_name = "Farmacykart";
     setting.vat_number = "09AAZCA5886C1ZV";
     setting.post_code = "201102";
@@ -61,7 +62,7 @@ const updateGlobalSetting = async (req, res) => {
     const globalSetting = await Setting.findOneAndUpdate(
       { name: "globalSetting" },
       { $set: setObject },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
 
     res.send({
@@ -117,7 +118,7 @@ const updateStoreSetting = async (req, res) => {
     const storeSetting = await Setting.findOneAndUpdate(
       { name: "storeSetting" },
       { $set: updateFields },
-      { new: true, upsert: true } // upsert to create the document if it doesn't exist
+      { new: true, upsert: true }, // upsert to create the document if it doesn't exist
     );
 
     res.send({
@@ -170,7 +171,7 @@ const updateVendorSetting = async (req, res) => {
     const vendorSetting = await Setting.findOneAndUpdate(
       { name: "vendorSetting" },
       { $set: updateFields },
-      { new: true, upsert: true }
+      { new: true, upsert: true },
     );
     res.send({
       data: vendorSetting,
@@ -219,7 +220,7 @@ const getStoreCustomizationSetting = async (req, res) => {
 
     const storeCustomizationSetting = await Setting.findOne(
       { name: "storeCustomizationSetting" },
-      projection
+      projection,
     );
 
     if (!storeCustomizationSetting) {
@@ -228,7 +229,7 @@ const getStoreCustomizationSetting = async (req, res) => {
 
     const setting = storeCustomizationSetting.setting || {};
     const protocol = req.headers["x-forwarded-proto"] || req.protocol || "http";
-    const host = req.get("host") || "localhost:5000";
+    const host = req.get("host") || "localhost:8092";
     const apiBase = process.env.API_URL || `${protocol}://${host}`;
     const logoUrl = `${apiBase}/logo/logo.png`;
     if (setting.navbar) {
@@ -260,7 +261,7 @@ const getStoreSeoSetting = async (req, res) => {
       {
         name: "storeCustomizationSetting",
       },
-      { "setting.seo": 1, _id: 0 }
+      { "setting.seo": 1, _id: 0 },
     );
     res.send(storeCustomizationSetting?.setting || {});
   } catch (err) {
@@ -283,7 +284,7 @@ const updateStoreCustomizationSetting = async (req, res) => {
     const storeCustomizationSetting = await Setting.findOneAndUpdate(
       { name: "storeCustomizationSetting" },
       { $set: updateFields },
-      { new: true, upsert: true } // upsert to create the document if it doesn't exist
+      { new: true, upsert: true }, // upsert to create the document if it doesn't exist
     );
 
     res.send({
@@ -334,7 +335,7 @@ const updateDeliverymanSetting = async (req, res) => {
       },
       {
         new: true,
-      }
+      },
     );
     res.send({
       message: "Deliveryman setting updated successfully!",

@@ -34,6 +34,8 @@ const Search = ({ products, attributes }) => {
   const { totalItems } = useCart();
   const { count: wishlistCount } = useWishlist();
   const isSidebarAction = useRef(false);
+  const abortControllerRef = useRef(null);
+  const isFirstMountRef = useRef(true);
 
   useEffect(() => {
     setIsLoading(false);
@@ -126,8 +128,24 @@ const Search = ({ products, attributes }) => {
     );
   };
 
-  // Main synchronization useEffect for products and URL params
+  // Main synchronization useEffect for products and URL params with AbortController
   useEffect(() => {
+    if (!router.isReady) return;
+
+    // Skip duplicate fetch on first mount if SSR products already provided
+    if (isFirstMountRef.current) {
+      isFirstMountRef.current = false;
+      if (products && products.length > 0) {
+        return;
+      }
+    }
+
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
+    }
+    const controller = new AbortController();
+    abortControllerRef.current = controller;
+
     const fetchByQuery = async () => {
       setIsLoading(true);
       try {
@@ -142,7 +160,7 @@ const Search = ({ products, attributes }) => {
           brand: brand ? brand : "",
         });
 
-        if (response?.products) {
+        if (!controller.signal.aborted && response?.products) {
           setInitialProducts(response.products);
           
           // Sync selection with URL if not a sidebar action
@@ -165,20 +183,26 @@ const Search = ({ products, attributes }) => {
           }
         }
       } catch (err) {
-        console.error("Error fetching products:", err);
+        if (err?.name !== "CanceledError" && err?.code !== "ERR_CANCELED") {
+          console.error("Error fetching products:", err);
+        }
       } finally {
-        setIsLoading(false);
-        isSidebarAction.current = false;
+        if (!controller.signal.aborted) {
+          setIsLoading(false);
+          isSidebarAction.current = false;
+        }
       }
     };
 
-    if (router.isReady) {
-      // Clear selection ONLY if there is NO category in URL AND it's not a sidebar action
-      if (!router.query._id && !isSidebarAction.current) {
-        setSelectedCategories([]);
-      }
-      fetchByQuery();
+    // Clear selection ONLY if there is NO category in URL AND it's not a sidebar action
+    if (!router.query._id && !isSidebarAction.current) {
+      setSelectedCategories([]);
     }
+    fetchByQuery();
+
+    return () => {
+      controller.abort();
+    };
   }, [router.isReady, router.query._id, router.query.category, router.query.query, router.query.q, router.query.brand, categories]);
 
   // Clear search query and URL filters when sidebar filters are applied
