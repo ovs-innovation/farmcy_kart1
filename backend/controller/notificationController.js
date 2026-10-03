@@ -7,7 +7,26 @@ const addNotification = async (req, res) => {
         productId: req.body.productId,
       });
       if (isAdded) {
-        return res.end();
+        return res.status(200).send({
+          message: "Notification already exists for this product.",
+          notification: isAdded,
+        });
+      } else {
+        const newNotification = new Notification(req.body);
+        await newNotification.save();
+        res.status(200).send({
+          message: "Notification save successfully!",
+        });
+      }
+    } else if (req.body.orderId) {
+      const isAdded = await Notification.findOne({
+        orderId: req.body.orderId,
+      });
+      if (isAdded) {
+        return res.status(200).send({
+          message: "Notification already exists for this order.",
+          notification: isAdded,
+        });
       } else {
         const newNotification = new Notification(req.body);
         await newNotification.save();

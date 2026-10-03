@@ -17,7 +17,6 @@ import CouponServices from "@services/CouponServices";
 import { notifyError, notifySuccess } from "@utils/toast";
 import CustomerServices from "@services/CustomerServices";
 import { isProfileComplete, getDisplayEmail } from "@utils/profileAuth";
-import NotificationServices from "@services/NotificationServices";
 import ShiprocketServices from "@services/ShiprocketServices";
 import useCartDB from "@hooks/useCartDB";
 
@@ -425,14 +424,6 @@ const useCheckoutSubmit = (storeSetting) => {
 
   const handleOrderSuccess = async (orderResponse, orderInfo) => {
     try {
-      const notificationInfo = {
-        orderId: orderResponse?._id,
-        message: `${orderResponse?.user_info?.name || "A customer"
-          } placed an order of ${parseFloat(orderResponse?.total || 0).toFixed(2)}!`,
-        image:
-          "https://res.cloudinary.com/ahossain/image/upload/v1655097002/placeholder_kvepfp.png",
-      };
-
       const updatedData = {
         ...orderResponse,
         date: showDateFormat(orderResponse.createdAt),
@@ -461,9 +452,6 @@ const useCheckoutSubmit = (storeSetting) => {
       if (orderResponse?.shiprocketSyncStatus === "Failed") {
         console.warn("Backend Shiprocket sync pending:", orderResponse.shiprocketLastError);
       }
-
-      // Add notification
-      await NotificationServices.addNotification(notificationInfo);
 
       // Proceed with order success
       router.push(`/order/${orderResponse?._id}`);

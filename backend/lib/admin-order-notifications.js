@@ -11,7 +11,6 @@ const createAdminOrderNotification = async (order) => {
   try {
     const existing = await Notification.findOne({
       orderId: order._id,
-      notificationType: "new_order",
     }).lean();
 
     if (existing) {
