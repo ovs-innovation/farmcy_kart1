@@ -278,7 +278,7 @@ const Navbar = () => {
                   href="/user/dashboard"
                   className="flex h-8 w-8 sm:h-9 sm:w-9 items-center justify-center rounded-full border-2 border-store-500 text-store-600 font-bold text-sm"
                 >
-                  {userInfo.name[0]}
+                  {typeof userInfo.name === "string" ? userInfo.name[0] : (typeof userInfo.name === "object" && userInfo.name !== null ? (userInfo.name.en || "U")[0] : "U")}
                 </Link>
               ) : (
                 <button

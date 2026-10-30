@@ -140,7 +140,7 @@ const TestimonialsSection = () => {
                         className="w-full h-full"
                         allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                         allowFullScreen
-                        title={testimonial.title}
+                        title={showingTranslateValue(testimonial.title)}
                       />
                     ) : isDirectVideo ? (
                       <video
@@ -155,7 +155,7 @@ const TestimonialsSection = () => {
                       <>
                         <Image
                           src={thumbnail}
-                          alt={testimonial.title}
+                          alt={showingTranslateValue(testimonial.title)}
                           fill
                           className="object-cover transition-transform duration-300 group-hover:scale-105"
                           sizes="(max-width: 640px) 100vw, (max-width: 1024px) 50vw, 33vw"
@@ -171,7 +171,7 @@ const TestimonialsSection = () => {
                         {/* Title Overlay */}
                         <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/80 to-transparent">
                           <h3 className="text-white font-bold text-lg md:text-xl leading-tight">
-                            {testimonial.title}
+                            {showingTranslateValue(testimonial.title)}
                           </h3>
                         </div>
                       </>
@@ -222,7 +222,7 @@ const TestimonialsSection = () => {
                 className="w-full h-full rounded-lg"
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
-                title={selectedVideo.title}
+                title={showingTranslateValue(selectedVideo.title)}
               />
             ) : (
               <video

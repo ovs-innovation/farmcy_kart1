@@ -8,7 +8,7 @@ const withPWA = require("next-pwa")({
   scope: "/",
   sw: "service-worker.js",
   skipWaiting: true,
-  disable: process.env.NODE_ENV !== "production",
+  disable: true,
 });
 
 /** @type {import('next').NextConfig} */

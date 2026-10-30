@@ -15,11 +15,16 @@ const OrderOptions = () => {
   const palette = getPalette(storeColor);
 
   // Get contact number from settings with fallbacks
-  const contactNumber = 
-    (typeof storeCustomizationSetting?.navbar?.phone === "string" ? storeCustomizationSetting.navbar.phone : showingTranslateValue(storeCustomizationSetting?.navbar?.phone)) || 
-    showingTranslateValue(storeCustomizationSetting?.contact_us?.call_box_phone) ||
-    (typeof globalSetting?.contact === "string" ? globalSetting.contact : showingTranslateValue(globalSetting?.contact)) ||
-    "09240250346"; // Fallback to default
+  const getRawContact = () => {
+    return (
+      (typeof storeCustomizationSetting?.navbar?.phone === "string" ? storeCustomizationSetting.navbar.phone : showingTranslateValue(storeCustomizationSetting?.navbar?.phone)) || 
+      showingTranslateValue(storeCustomizationSetting?.contact_us?.call_box_phone) ||
+      (typeof globalSetting?.contact === "string" ? globalSetting.contact : showingTranslateValue(globalSetting?.contact)) ||
+      "09240250346"
+    );
+  };
+  const rawContact = getRawContact();
+  const contactNumber = typeof rawContact === "string" ? rawContact : (typeof rawContact === "object" && rawContact !== null ? (rawContact.en || "09240250346") : String(rawContact || "09240250346"));
 
   return (
     <>

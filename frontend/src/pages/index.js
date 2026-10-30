@@ -155,7 +155,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                           modules={[Navigation, Autoplay]}
                           spaceBetween={10}
                           slidesPerView={2}
-                          loop={(popularProducts?.length || 0) >= 10}
+                          loop={false}
                           navigation={{
                             prevEl: ".prev-popular",
                             nextEl: ".next-popular",
@@ -268,7 +268,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                             modules={[Navigation, Autoplay]}
                             spaceBetween={15}
                             slidesPerView={2}
-                            loop={(bestSellingProducts?.length || 0) >= 10}
+                            loop={false}
                             navigation={{
                               prevEl: ".prev-best-selling",
                               nextEl: ".next-best-selling",
@@ -413,7 +413,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                             modules={[Navigation, Autoplay]}
                             spaceBetween={10}
                             slidesPerView={2}
-                            loop={(discountProducts?.length || 0) >= 10}
+                            loop={false}
                             navigation={{
                               prevEl: ".prev-discount",
                               nextEl: ".next-discount",

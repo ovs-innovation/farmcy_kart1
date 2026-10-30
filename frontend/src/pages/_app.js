@@ -22,6 +22,7 @@ import SettingServices from "@services/SettingServices";
 import FcmTokenHandler from "@components/FcmTokenHandler";
 import { AnnouncementsProvider } from "@context/AnnouncementsContext";
 import { fetchWebsiteAnnouncements } from "@lib/fetchAnnouncements";
+import ErrorBoundary from "@components/common/ErrorBoundary";
 
 let persistor = persistStore(store);
 
@@ -104,7 +105,9 @@ function MyApp({ Component, pageProps, announcements = [] }) {
                     <CartProviderWrapper>
                       <DefaultSeo />
                       <FcmTokenHandler />
-                      <Component {...pageProps} />
+                      <ErrorBoundary>
+                        <Component {...pageProps} />
+                      </ErrorBoundary>
                     </CartProviderWrapper>
                   </AnnouncementsProvider>
                 </SidebarProvider>
