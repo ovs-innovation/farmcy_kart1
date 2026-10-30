@@ -35,7 +35,23 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
   const router = useRouter();
 
   const storeColor = storeCustomizationSetting?.theme?.color || "green";
-  const currency = globalSetting?.default_currency || "₹";
+  const rawCurrency = globalSetting?.default_currency;
+  const currency = typeof rawCurrency === "string"
+    ? rawCurrency
+    : (typeof rawCurrency === "object" && rawCurrency !== null
+        ? (rawCurrency.en || Object.values(rawCurrency).find(v => typeof v === "string") || "₹")
+        : (showingTranslateValue(rawCurrency) || "₹"));
+
+  const getProductTitle = (p) => {
+    if (!p) return "";
+    const raw = typeof p === "object" && p !== null && "title" in p ? p.title : p;
+    const val = showingTranslateValue ? showingTranslateValue(raw) : (raw?.en || raw);
+    if (typeof val === "string") return val;
+    if (typeof val === "object" && val !== null) {
+      return val.en || Object.values(val).find(v => typeof v === "string") || "";
+    }
+    return String(val || "");
+  };
 
   const { items: wishlistItems, add: addWishlist, remove: removeWishlist } = useWishlist();
   const isFavourited = wishlistItems?.some((item) => String(item?._id) === String(product?._id));
@@ -152,7 +168,7 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
             router.push(`/product/${product.slug}`);
             handleLogEvent(
               "product",
-              `navigated to ${showingTranslateValue(product?.title)} product page`
+              `navigated to ${getProductTitle(product)} product page`
             );
           }}
           className="relative flex justify-center items-center cursor-pointer w-full p-1 sm:p-1.5 h-[120px] sm:h-[140px] md:h-[160px] lg:h-[190px] flex-shrink-0"
@@ -228,9 +244,9 @@ const ProductCard = ({ product, attributes, hidePriceAndAdd = false, hideDiscoun
         <div className="w-full px-2 sm:px-3 md:px-4 pt-1.5 sm:pt-2 md:pt-2.5 pb-0.5 flex-shrink-0">
           <h2
             className="text-heading mb-0 block text-xs sm:text-sm font-normal text-gray-600 leading-tight truncate overflow-hidden text-ellipsis whitespace-nowrap z-20"
-            title={showingTranslateValue(product?.title)}
+            title={getProductTitle(product)}
           >
-            {showingTranslateValue(product?.title)}
+            {getProductTitle(product)}
           </h2>
         </div>
 

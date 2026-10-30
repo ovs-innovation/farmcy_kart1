@@ -12,6 +12,20 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
   const { showingTranslateValue } = useUtilsFunction();
   const [selectedLeft, setSelectedLeft] = useState(null);
 
+  const getCategoryName = (category) => {
+    if (!category) return "";
+    const raw = typeof category === "object" && category !== null && "name" in category ? category.name : category;
+    const val = showingTranslateValue ? showingTranslateValue(raw) : (raw?.en || raw);
+    if (typeof val === "string") return val;
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    if (typeof val === "object" && val !== null) {
+      if (typeof val.en === "string") return val.en;
+      const firstStr = Object.values(val).find(v => typeof v === "string" && v.trim() !== "");
+      return firstStr || "";
+    }
+    return "";
+  };
+
   const { data, error, isLoading: loading } = useQuery({
     queryKey: ["category"],
     queryFn: async () => await CategoryServices.getShowingCategory(),
@@ -60,7 +74,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
   }, [parentCategories, initialSelectedCategory, selectedLeft]);
 
   const handleSubcategoryClick = (subcategory) => {
-    const catName = showingTranslateValue(subcategory?.name) || "";
+    const catName = getCategoryName(subcategory) || "";
     router.push(
       {
         pathname: "/search",
@@ -113,7 +127,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
                         {category.icon ? (
                           <img
                             src={category.icon}
-                            alt={showingTranslateValue(category?.name)}
+                            alt={getCategoryName(category)}
                             className="w-7 h-7 object-contain"
                           />
                         ) : (
@@ -121,13 +135,13 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
                             className={`text-base font-bold ${isActive ? "text-white" : "text-emerald-600"
                               }`}
                           >
-                            {showingTranslateValue(category?.name)?.charAt(0).toUpperCase()}
+                            {getCategoryName(category)?.charAt(0).toUpperCase()}
                           </span>
                         )}
                       </div>
                       <div className="flex-1 text-left">
                         <span className="text-sm font-semibold block leading-tight">
-                          {showingTranslateValue(category?.name)}
+                          {getCategoryName(category)}
                         </span>
                         {category.children?.length > 0 && (
                           <span
@@ -175,7 +189,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
                       {category.icon ? (
                         <img
                           src={category.icon}
-                          alt={showingTranslateValue(category?.name)}
+                          alt={getCategoryName(category)}
                           className="w-8 h-8 object-contain"
                         />
                       ) : (
@@ -183,12 +197,12 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
                           className={`text-lg font-bold ${isActive ? "text-white" : "text-emerald-600"
                             }`}
                         >
-                          {showingTranslateValue(category?.name)?.charAt(0).toUpperCase()}
+                          {getCategoryName(category)?.charAt(0).toUpperCase()}
                         </span>
                       )}
                     </div>
                     <span className="text-xs font-semibold text-center line-clamp-2 leading-tight">
-                      {showingTranslateValue(category?.name)}
+                      {getCategoryName(category)}
                     </span>
                   </button>
                 );
@@ -205,7 +219,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
               <div className="flex items-center justify-between gap-4 w-full min-w-0">
                 <div className="min-w-0 flex-1">
                   <h3 className="text-xl font-bold text-gray-800 flex items-center gap-2 leading-tight">
-                    <span className="truncate">{showingTranslateValue(selectedLeft?.name)}</span>
+                    <span className="truncate">{getCategoryName(selectedLeft)}</span>
                     {rightCategories.length > 0 && (
                       <span className="inline-flex flex-shrink-0 items-center px-2.5 py-0.5 rounded-full text-xs font-medium bg-emerald-100 text-emerald-800">
                         {rightCategories.length}
@@ -245,7 +259,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
                         <div className="relative w-full aspect-square mb-3 sm:mb-4 overflow-hidden rounded-xl bg-gradient-to-br from-gray-50 to-gray-100 p-2 sm:p-3 group-hover:from-emerald-50 group-hover:to-emerald-100 transition-all duration-500">
                           <img
                             src={child.icon || "/placeholder.png"}
-                            alt={showingTranslateValue(child?.name)}
+                            alt={getCategoryName(child)}
                             className="w-full h-full object-contain transition-transform duration-700 group-hover:scale-110 group-hover:rotate-3"
                           />
                           {/* Corner Accent */}
@@ -258,7 +272,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
 
                         {/* Category Name */}
                         <h4 className="text-xs sm:text-sm font-bold text-gray-800 group-hover:text-emerald-700 text-center line-clamp-2 leading-tight min-h-[2.5rem] sm:min-h-[2.8rem] flex items-center justify-center transition-colors duration-300">
-                          {showingTranslateValue(child?.name)}
+                          {getCategoryName(child)}
                         </h4>
 
                         {/* Explore Label */}

@@ -12,6 +12,11 @@ const Price = ({
 }) => {
   // console.log("price", price, "originalPrice", originalPrice, "card", card);
   const { getNumberTwo } = useUtilsFunction();
+  const safeCurrency = typeof currency === "string"
+    ? currency
+    : (typeof currency === "object" && currency !== null
+        ? (currency.en || Object.values(currency).find(v => typeof v === "string") || "₹")
+        : "₹");
   const taxRateValue = Number(product?.taxRate ?? 0);
   const shouldShowTax =
     typeof showTaxLabel === "boolean" ? showTaxLabel : !card;
@@ -59,7 +64,7 @@ const Price = ({
                 : "inline-block text-2xl"
             }
           >
-            {currency}
+            {safeCurrency}
             {getNumberTwo(Math.max(0, price))}
           </span>
           {(!hideDiscountAndMRP && originalPrice > price) ? (
@@ -71,7 +76,7 @@ const Price = ({
                     : "text-lg font-normal text-gray-400 ml-1"
                 }
               >
-                {currency}
+                {safeCurrency}
                 {getNumberTwo(originalPrice)}
               </del>
               <span
@@ -95,7 +100,7 @@ const Price = ({
                 : "inline-block text-2xl"
             }
           >
-            {currency}
+            {safeCurrency}
             {getNumberTwo(effectivePrice)}
           </span>
           {(!hideDiscountAndMRP && originalPrice > effectivePrice) ? (
@@ -107,7 +112,7 @@ const Price = ({
                     : "text-lg font-normal text-gray-400 ml-1"
                 }
               >
-                {currency}
+                {safeCurrency}
                 {getNumberTwo(originalPrice)}
               </del>
               <span

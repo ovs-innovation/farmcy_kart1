@@ -4,12 +4,15 @@ import { useState, useRef, useEffect, useCallback } from "react";
 import { createPortal } from "react-dom";
 import Link from "next/link";
 import { IoChevronDown } from "react-icons/io5";
+import useUtilsFunction from "@hooks/useUtilsFunction";
 
 export default function LowerCategoryNavbar({
   categories = [],
   showingTranslateValue,
   variant = "row",
 }) {
+  const { showingTranslateValue: hookTranslate } = useUtilsFunction();
+  const translate = showingTranslateValue || hookTranslate;
   const [activeCategoryId, setActiveCategoryId] = useState(null);
   const [menuPos, setMenuPos] = useState({ top: 0, left: 0 });
   const [mounted, setMounted] = useState(false);
@@ -33,9 +36,17 @@ export default function LowerCategoryNavbar({
   };
 
   const getName = (cat) => {
-    return showingTranslateValue
-      ? showingTranslateValue(cat?.name)
-      : cat?.name?.en || cat?.name;
+    if (!cat) return "";
+    const raw = typeof cat === "object" && cat !== null && "name" in cat ? cat.name : cat;
+    const val = translate ? translate(raw) : (raw?.en || raw);
+    if (typeof val === "string") return val;
+    if (typeof val === "number" || typeof val === "boolean") return String(val);
+    if (typeof val === "object" && val !== null) {
+      if (typeof val.en === "string") return val.en;
+      const firstStr = Object.values(val).find(v => typeof v === "string" && v.trim() !== "");
+      return firstStr || "";
+    }
+    return "";
   };
 
   const clearCloseTimer = () => {

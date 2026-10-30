@@ -585,19 +585,19 @@ const Footer = () => {
                 <div className="flex items-center gap-3 text-gray-600 hover:text-store-600 transition-colors">
                   <FiPhone className="w-5 h-5 text-gray-500 flex-shrink-0" />
                   <a
-                    href={`tel:${storeCustomizationSetting?.footer?.block4_phone}`}
+                    href={`tel:${typeof storeCustomizationSetting?.footer?.block4_phone === "string" ? storeCustomizationSetting.footer.block4_phone : (showingTranslateValue(storeCustomizationSetting?.footer?.block4_phone) || "")}`}
                     className="text-sm hover:underline"
                   >
-                    {storeCustomizationSetting?.footer?.block4_phone}
+                    {typeof storeCustomizationSetting?.footer?.block4_phone === "string" ? storeCustomizationSetting.footer.block4_phone : (showingTranslateValue(storeCustomizationSetting?.footer?.block4_phone) || "")}
                   </a>
                 </div>
                 <div className="flex items-center gap-3 text-gray-600 hover:text-store-600 transition-colors">
                   <FiMail className="w-5 h-5 text-gray-500 flex-shrink-0" />
                   <a
-                    href={`mailto:${storeCustomizationSetting?.footer?.block4_email}`}
+                    href={`mailto:${typeof storeCustomizationSetting?.footer?.block4_email === "string" ? storeCustomizationSetting.footer.block4_email : (showingTranslateValue(storeCustomizationSetting?.footer?.block4_email) || "")}`}
                     className="text-sm hover:underline break-all"
                   >
-                    {storeCustomizationSetting?.footer?.block4_email}
+                    {typeof storeCustomizationSetting?.footer?.block4_email === "string" ? storeCustomizationSetting.footer.block4_email : (showingTranslateValue(storeCustomizationSetting?.footer?.block4_email) || "")}
                   </a>
                 </div>
               </div>

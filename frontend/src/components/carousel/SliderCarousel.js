@@ -105,7 +105,7 @@ const SliderCarousel = () => {
               disableOnInteraction: false,
               pauseOnMouseEnter: false,
             }}
-            loop={sliderData.length >= 4}
+            loop={false}
             className="slider-carousel-swiper"
           >
             {sliderData.map((item, index) => (

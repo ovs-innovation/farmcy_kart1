@@ -41,7 +41,6 @@ function MyApp({ Component, pageProps, announcements = [] }) {
   // Dev safety: unregister any previously installed PWA service workers.
   // Old SWs can cache API/HTML and cause "backend content" to appear after refresh.
   useEffect(() => {
-    if (process.env.NODE_ENV === "production") return;
     if (typeof window === "undefined") return;
     if (!("serviceWorker" in navigator)) return;
 

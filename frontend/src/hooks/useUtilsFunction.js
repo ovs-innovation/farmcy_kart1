@@ -7,7 +7,12 @@ const useUtilsFunction = () => {
 
   const { globalSetting } = useGetSetting();
 
-  const currency = globalSetting?.default_currency || "₹";
+  const rawCurrency = globalSetting?.default_currency;
+  const currency = typeof rawCurrency === "string"
+    ? rawCurrency
+    : (typeof rawCurrency === "object" && rawCurrency !== null
+        ? (rawCurrency.en || Object.values(rawCurrency).find(v => typeof v === "string") || "₹")
+        : "₹");
 
   //for date and time format
   const showTimeFormat = (data, timeFormat) => {
@@ -41,13 +46,23 @@ const useUtilsFunction = () => {
       if (lang && data[lang] && typeof data[lang] === "string") {
         return data[lang];
       }
-      if (data.en && typeof data.en === "string") {
-        return data.en;
+      if (data.en) {
+        if (typeof data.en === "string") return data.en;
+        if (typeof data.en === "object" && data.en !== null) {
+          const nested = data.en.en || Object.values(data.en).find(v => typeof v === "string");
+          if (typeof nested === "string") return nested;
+        }
       }
       const values = Object.values(data);
       for (const val of values) {
         if (typeof val === "string" && val.trim() !== "") {
           return val;
+        }
+        if (typeof val === "object" && val !== null) {
+          const nested = val.en || Object.values(val).find(v => typeof v === "string");
+          if (typeof nested === "string" && nested.trim() !== "") {
+            return nested;
+          }
         }
       }
       return "";
