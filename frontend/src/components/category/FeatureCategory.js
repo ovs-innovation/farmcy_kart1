@@ -85,7 +85,7 @@ const FeatureCategory = ({ initialSelectedCategory }) => {
     );
   };
 
-  if (loading) return <CMSkeleton count={10} height={20} error={error} loading={loading} />;
+  if (loading && (!parentCategories || parentCategories.length === 0)) return <CMSkeleton count={10} height={20} error={error} loading={loading} />;
 
   return (
     <div className="w-full max-w-screen-2xl mx-auto px-3 sm:px-4 lg:px-6">

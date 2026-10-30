@@ -142,7 +142,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                 />
                 <div className="bg-purple-50 flex w-full relative group px-4 py-4">
                   <div className="w-full">
-                    {loading ? (
+                    {(loading && (!popularProducts || popularProducts.length === 0)) ? (
                       <CMSkeleton
                         count={20}
                         height={20}
@@ -249,7 +249,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
 
                   {/* Slider Area */}
                   <div className="relative group/slider">
-                    {loading ? (
+                    {(loading && (!bestSellingProducts || bestSellingProducts.length === 0)) ? (
                       <CMSkeleton count={20} height={20} error={error} loading={loading} />
                     ) : (
                       <div className="relative px-2">
@@ -400,14 +400,14 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                   />
                   <div className="bg-rose-50 py-4 px-4 flex w-full relative group">
                     <div className="w-full">
-                      {loading ? (
-                        <CMSkeleton
-                          count={20}
-                          height={20}
-                          error={error}
-                          loading={loading}
-                        />
-                      ) : (
+                      {(loading && (!discountProducts || discountProducts.length === 0)) ? (
+                      <CMSkeleton
+                        count={20}
+                        height={20}
+                        error={error}
+                        loading={loading}
+                      />
+                    ) : (
                         <>
                           <Swiper
                             modules={[Navigation, Autoplay]}

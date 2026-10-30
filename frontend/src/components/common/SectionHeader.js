@@ -30,7 +30,7 @@ const SectionHeader = ({ title, subtitle, loading = false, error = null, align =
         className="text-xl md:text-2xl lg:text-3xl font-bold mb-3" 
         style={{ color: palette[700] }}
       >
-        {loading ? (
+        {loading && !displayTitle ? (
           <CMSkeleton count={1} height={30} loading={loading} data="" />
         ) : (
           displayTitle
