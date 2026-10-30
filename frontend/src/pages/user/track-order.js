@@ -139,10 +139,10 @@ const TrackOrder = () => {
                       {order.cart?.map((item, idx) => (
                         <div key={idx} className="flex gap-3 items-center">
                           <div className="w-12 h-12 rounded-lg bg-gray-50 border border-gray-100 overflow-hidden flex-shrink-0">
-                            <img src={item.image} alt={item.title} className="w-full h-full object-cover" />
+                            <img src={item.image} alt={getSafeString(item?.title, null, "Product")} className="w-full h-full object-cover" />
                           </div>
                           <div className="flex-1 min-w-0">
-                            <p className="text-sm font-bold text-gray-800 truncate">{item.title}</p>
+                            <p className="text-sm font-bold text-gray-800 truncate">{getSafeString(item?.title, null, "Product")}</p>
                             <p className="text-xs text-gray-500">Qty: {item.quantity} · ₹{parseFloat(item.price).toFixed(2)}</p>
                           </div>
                         </div>

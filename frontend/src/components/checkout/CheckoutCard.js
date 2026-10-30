@@ -5,6 +5,7 @@ import { FiPlus, FiMinus } from "react-icons/fi";
 import useCartDB from "@hooks/useCartDB";
 import useGetSetting from "@hooks/useGetSetting";
 import { notifyError } from "@utils/toast";
+import { getSafeString } from "@utils/translate";
 
 const CheckoutCard = ({ item }) => {
   const { updateQuantityWithDB } = useCartDB();
@@ -12,6 +13,7 @@ const CheckoutCard = ({ item }) => {
   const { globalSetting } = useGetSetting();
 
   const currency = globalSetting?.default_currency || "₹";
+  const safeTitle = getSafeString(item?.title, null, "Product");
 
   return (
     <div
@@ -27,14 +29,14 @@ const CheckoutCard = ({ item }) => {
           }
           width={50}
           height={50}
-          alt={item.title}
+          alt={safeTitle}
         />
       </div>
       <div className="flex flex-col w-full overflow-hidden">
         <div className="flex items-center justify-between">
           <p className="mb-0">
             <span className="text-sm font-medium text-gray-700 text-heading line-clamp-1">
-              {item?.title?.substring(0, 5)}
+              {safeTitle}
             </span>
             <span className="text-xs text-gray-400 mb-2">
               Item Price{currency}

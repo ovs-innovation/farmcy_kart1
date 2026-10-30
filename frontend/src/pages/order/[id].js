@@ -14,6 +14,7 @@ import { useRouter } from "next/router";
 
 import Layout from "@layout/Layout";
 import useGetSetting from "@hooks/useGetSetting";
+import { getSafeString } from "@utils/translate";
 import Invoice from "@components/invoice/Invoice";
 import Loading from "@components/preloader/Loading";
 import OrderServices from "@services/OrderServices";
@@ -299,7 +300,7 @@ const Order = ({ params }) => {
                   >
                     <option value="" disabled>Select a reason...</option>
                     {refundReasons.map((r) => (
-                      <option key={r._id} value={r.title}>{r.title}</option>
+                      <option key={r._id} value={getSafeString(r?.title)}>{getSafeString(r?.title)}</option>
                     ))}
                   </select>
                 </div>

@@ -5,6 +5,7 @@ import { useState } from "react";
 
 import useCustomerAuth from "@hooks/useCustomerAuth";
 import CustomerNotificationServices from "@services/CustomerNotificationServices";
+import { getSafeString } from "@utils/translate";
 
 const CustomerNotificationBanner = () => {
   const router = useRouter();
@@ -50,9 +51,9 @@ const CustomerNotificationBanner = () => {
         onClick={handleOpen}
         className="flex-1 text-left min-w-0 hover:underline"
       >
-        <span className="font-bold block truncate">{latest.title}</span>
+        <span className="font-bold block truncate">{getSafeString(latest.title, null, "")}</span>
         {latest.description ? (
-          <span className="text-white/90 text-xs line-clamp-1">{latest.description}</span>
+          <span className="text-white/90 text-xs line-clamp-1">{getSafeString(latest.description, null, "")}</span>
         ) : null}
       </button>
       <button
