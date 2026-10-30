@@ -4,14 +4,16 @@ import { DefaultSeo as NextSeo } from "next-seo";
 //internal import
 import useGetSetting from "@hooks/useGetSetting";
 import { pickBrandLogo } from "@utils/brandAssets";
+import useUtilsFunction from "@hooks/useUtilsFunction";
 
 const DefaultSeo = () => {
   const { globalSetting, storeCustomizationSetting } = useGetSetting();
+  const { showingTranslateValue } = useUtilsFunction();
 
   // Get dynamic SEO values from settings
-  const metaTitle = storeCustomizationSetting?.seo?.meta_title || globalSetting?.shop_name || "Farmacykart";
-  const metaDescription = storeCustomizationSetting?.seo?.meta_description || "Discover personalized merchandise, branded giveaways, and advertising essentials. Ideal for businesses, events, and promotions";
-  const metaUrl = storeCustomizationSetting?.seo?.meta_url || globalSetting?.website || "";
+  const metaTitle = showingTranslateValue(storeCustomizationSetting?.seo?.meta_title) || showingTranslateValue(globalSetting?.shop_name) || "Farmacykart";
+  const metaDescription = showingTranslateValue(storeCustomizationSetting?.seo?.meta_description) || "Discover personalized merchandise, branded giveaways, and advertising essentials. Ideal for businesses, events, and promotions";
+  const metaUrl = showingTranslateValue(storeCustomizationSetting?.seo?.meta_url) || showingTranslateValue(globalSetting?.website) || "";
   const brandLogo = pickBrandLogo(
     storeCustomizationSetting?.navbar?.logo,
     storeCustomizationSetting?.seo?.favicon,

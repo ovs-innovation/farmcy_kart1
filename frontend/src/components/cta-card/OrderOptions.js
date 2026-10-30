@@ -16,9 +16,9 @@ const OrderOptions = () => {
 
   // Get contact number from settings with fallbacks
   const contactNumber = 
-    storeCustomizationSetting?.navbar?.phone || 
+    (typeof storeCustomizationSetting?.navbar?.phone === "string" ? storeCustomizationSetting.navbar.phone : showingTranslateValue(storeCustomizationSetting?.navbar?.phone)) || 
     showingTranslateValue(storeCustomizationSetting?.contact_us?.call_box_phone) ||
-    globalSetting?.contact ||
+    (typeof globalSetting?.contact === "string" ? globalSetting.contact : showingTranslateValue(globalSetting?.contact)) ||
     "09240250346"; // Fallback to default
 
   return (

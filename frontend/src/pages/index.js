@@ -20,6 +20,7 @@ import { SidebarContext } from "@context/SidebarContext";
 import Layout from "@layout/Layout";
 import Banner from "@components/banner/Banner";
 import useGetSetting from "@hooks/useGetSetting";
+import useUtilsFunction from "@hooks/useUtilsFunction";
 import OfferCard from "@components/offer/OfferCard";
 import Loading from "@components/preloader/Loading";
 import ProductServices from "@services/ProductServices";
@@ -45,6 +46,7 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
   const { state } = useContext(UserContext) || {};
   const isWholesaler = state?.userInfo?.role && state.userInfo.role.toString().toLowerCase() === "wholesaler";
   const { loading, error, storeCustomizationSetting } = useGetSetting();
+  const { showingTranslateValue } = useUtilsFunction();
 
   // console.log("storeCustomizationSetting", storeCustomizationSetting);
 
@@ -92,8 +94,8 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                   <div className="flex flex-row justify-between items-end mb-4">
                     <div className="flex-1">
                       <SectionHeader
-                        title={storeCustomizationSetting?.home?.feature_title || "Featured Categories"}
-                        subtitle={storeCustomizationSetting?.home?.feature_description || "Explore our handpicked selection of featured categories"}
+                        title={showingTranslateValue(storeCustomizationSetting?.home?.feature_title) || "Featured Categories"}
+                        subtitle={showingTranslateValue(storeCustomizationSetting?.home?.feature_description) || "Explore our handpicked selection of featured categories"}
                         loading={loading}
                         error={error}
                         align="left"
@@ -132,8 +134,8 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
             {storeCustomizationSetting?.home?.popular_products_status && (
               <div className="lg:py-16 py-10 mx-auto max-w-screen-2xl px-3 sm:px-10">
                 <SectionHeader
-                  title={storeCustomizationSetting?.home?.popular_title || "Popular Products"}
-                  subtitle={storeCustomizationSetting?.home?.popular_description || "Discover our most loved and trending products"}
+                  title={showingTranslateValue(storeCustomizationSetting?.home?.popular_title) || "Popular Products"}
+                  subtitle={showingTranslateValue(storeCustomizationSetting?.home?.popular_description) || "Discover our most loved and trending products"}
                   loading={loading}
                   error={error}
                   align="left"
@@ -228,8 +230,8 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                         <span>Popular Choice</span>
                       </div>
                       <SectionHeader
-                        title={storeCustomizationSetting?.home?.best_selling_title || "Best Selling Products"}
-                        subtitle={storeCustomizationSetting?.home?.best_selling_description || "Explore our top-rated essentials, loved by thousands of customers."}
+                        title={showingTranslateValue(storeCustomizationSetting?.home?.best_selling_title) || "Best Selling Products"}
+                        subtitle={showingTranslateValue(storeCustomizationSetting?.home?.best_selling_description) || "Explore our top-rated essentials, loved by thousands of customers."}
                         align="left"
                       />
                     </div>
@@ -390,8 +392,8 @@ const Home = ({ popularProducts, discountProducts, bestSellingProducts, attribut
                   className="lg:py-16 py-10 mx-auto max-w-screen-2xl px-3 sm:px-10"
                 >
                   <SectionHeader
-                    title={storeCustomizationSetting?.home?.latest_discount_title || "Discounted Products"}
-                    subtitle={storeCustomizationSetting?.home?.latest_discount_description || "Grab amazing deals on our discounted products"}
+                    title={showingTranslateValue(storeCustomizationSetting?.home?.latest_discount_title) || "Discounted Products"}
+                    subtitle={showingTranslateValue(storeCustomizationSetting?.home?.latest_discount_description) || "Grab amazing deals on our discounted products"}
                     loading={loading}
                     error={error}
                     align="left"

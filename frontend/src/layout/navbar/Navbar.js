@@ -25,8 +25,9 @@ import logo from "../../../public/logo/logo.png";
 
 const NavbarLogo = () => {
   const { globalSetting } = useGetSetting();
+  const { showingTranslateValue } = useUtilsFunction();
   const [imgError, setImgError] = useState(false);
-  const siteName = globalSetting?.shop_name || "Farmacykart";
+  const siteName = showingTranslateValue(globalSetting?.shop_name) || "Farmacykart";
 
   if (imgError) {
     return (

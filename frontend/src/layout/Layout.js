@@ -15,9 +15,11 @@ import { getPalette } from "@utils/themeColors";
 import useCartSync from "@hooks/useCartSync";
 import FloatingWhatsApp from "@components/common/FloatingWhatsApp";
 import { pickBrandLogo } from "@utils/brandAssets";
+import useUtilsFunction from "@hooks/useUtilsFunction";
 
 const Layout = ({ title, description, children, hideMobileHeader }) => {
   const { storeCustomizationSetting, globalSetting } = useGetSetting();
+  const { showingTranslateValue } = useUtilsFunction();
   const rawColor = storeCustomizationSetting?.theme?.color;
   const storeColor =
     !rawColor || rawColor === "pink" || rawColor === "#EC4899" || rawColor === "#ec4899"
@@ -29,13 +31,13 @@ const Layout = ({ title, description, children, hideMobileHeader }) => {
   useCartSync();
 
   // Get dynamic title and favicon from settings
-  const siteTitle = storeCustomizationSetting?.seo?.meta_title || globalSetting?.shop_name || "Farmacykart";
+  const siteTitle = showingTranslateValue(storeCustomizationSetting?.seo?.meta_title) || showingTranslateValue(globalSetting?.shop_name) || "Farmacykart";
   const favicon = pickBrandLogo(
     storeCustomizationSetting?.seo?.favicon,
     globalSetting?.logo,
     storeCustomizationSetting?.navbar?.logo
   );
-  const defaultDescription = storeCustomizationSetting?.seo?.meta_description || description || "Discover personalized merchandise, branded giveaways, and advertising essentials. Ideal for businesses, events, and promotions";
+  const defaultDescription = showingTranslateValue(storeCustomizationSetting?.seo?.meta_description) || (typeof description === "string" ? description : "") || "Discover personalized merchandise, branded giveaways, and advertising essentials. Ideal for businesses, events, and promotions";
 
   return (
     <>
@@ -58,7 +60,7 @@ const Layout = ({ title, description, children, hideMobileHeader }) => {
             `}
           </style>
           <title>
-            {title ? `${siteTitle} | ${title}` : siteTitle}
+            {title ? `${siteTitle} | ${typeof title === "string" ? title : showingTranslateValue(title)}` : siteTitle}
           </title>
           <meta name="description" content={description || defaultDescription} />
           <link rel="icon" href={favicon} />

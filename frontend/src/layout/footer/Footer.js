@@ -566,7 +566,7 @@ const Footer = () => {
                 ) : globalSetting?.company_name ? (
                   <div className="mb-1">
                     <p className="text-base font-semibold text-gray-800">
-                      {globalSetting.company_name}
+                      {showingTranslateValue(globalSetting.company_name)}
                     </p>
                   </div>
                 ) : null}
