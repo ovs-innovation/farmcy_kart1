@@ -249,6 +249,19 @@ const getStoreCustomizationSetting = async (req, res) => {
       setting.theme = { ...(setting.theme || {}), color: "green" };
     }
 
+    // Sanitize any accidentally oversized base64 strings to protect API performance
+    const sanitizeOversizedBase64 = (obj) => {
+      if (!obj || typeof obj !== "object") return;
+      for (const k of Object.keys(obj)) {
+        if (typeof obj[k] === "string" && obj[k].startsWith("data:image/") && obj[k].length > 50000) {
+          obj[k] = "";
+        } else if (typeof obj[k] === "object") {
+          sanitizeOversizedBase64(obj[k]);
+        }
+      }
+    };
+    sanitizeOversizedBase64(setting);
+
     res.send(setting);
   } catch (err) {
     res.status(500).send({ message: err.message });
