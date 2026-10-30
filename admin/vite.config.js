@@ -28,6 +28,7 @@ export default defineConfig({
     cssInjectedByJsPlugin(),
 
     VitePWA({
+      disable: true,
       registerType: "autoUpdate",
       devOptions: {
         // enabled: process.env.SW_DEV === "true",
