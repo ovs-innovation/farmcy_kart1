@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import dayjs from "dayjs";
 import Cookies from "js-cookie";
 import useGetSetting from "./useGetSetting";
@@ -39,35 +40,7 @@ const useUtilsFunction = () => {
 
   //for translation
   const showingTranslateValue = (data) => {
-    if (data === null || data === undefined) return "";
-    if (typeof data === "string") return data;
-    if (typeof data === "number" || typeof data === "boolean") return String(data);
-    if (typeof data === "object") {
-      if (lang && data[lang] && typeof data[lang] === "string") {
-        return data[lang];
-      }
-      if (data.en) {
-        if (typeof data.en === "string") return data.en;
-        if (typeof data.en === "object" && data.en !== null) {
-          const nested = data.en.en || Object.values(data.en).find(v => typeof v === "string");
-          if (typeof nested === "string") return nested;
-        }
-      }
-      const values = Object.values(data);
-      for (const val of values) {
-        if (typeof val === "string" && val.trim() !== "") {
-          return val;
-        }
-        if (typeof val === "object" && val !== null) {
-          const nested = val.en || Object.values(val).find(v => typeof v === "string");
-          if (typeof nested === "string" && nested.trim() !== "") {
-            return nested;
-          }
-        }
-      }
-      return "";
-    }
-    return "";
+    return getSafeString(data, lang, "");
   };
 
   const showingImage = (data) => {

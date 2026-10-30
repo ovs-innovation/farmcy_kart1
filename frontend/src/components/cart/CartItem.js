@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import { useContext } from "react";
 import Link from "next/link";
 import { useCart } from "react-use-cart";
@@ -25,6 +26,8 @@ const CartItem = ({
   const isWholesaler =
     state?.userInfo?.role &&
     state.userInfo.role.toString().toLowerCase() === "wholesaler";
+
+  const itemTitle = getSafeString(item?.title, null, "Product");
 
   // Calculate MRP and discount - Check multiple possible price fields (only for non-wholesalers)
   const originalPrice =
@@ -75,7 +78,7 @@ const CartItem = ({
             id={`select-cart-item-${item.id}`}
             checked={isSelected}
             onChange={onToggleSelect}
-            aria-label={`Select ${item.title}`}
+            aria-label={`Select ${itemTitle}`}
             className="h-5 w-5 text-store-600 focus:ring-store-500 border-gray-300 rounded cursor-pointer transition-all"
           />
         </div>
@@ -92,7 +95,7 @@ const CartItem = ({
           }
           width={70}
           height={70}
-          alt={item.title}
+          alt={itemTitle}
           className="object-cover"
         />
       </div>
@@ -105,7 +108,7 @@ const CartItem = ({
           onClick={closeCartDrawer}
           className="truncate text-sm md:text-base font-semibold text-gray-800 hover:text-emerald-600 transition-colors duration-200 line-clamp-2 mb-1.5"
         >
-          {item.title}
+          {itemTitle}
         </Link>
 
         {/* MRP and Discount Badge - Hidden for wholesalers */}

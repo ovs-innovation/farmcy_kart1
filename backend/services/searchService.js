@@ -817,7 +817,7 @@ const fallbackMongoAutocomplete = async (query) => {
     suggestions.push({
       type: "product",
       id: String(p._id),
-      title: p.title?.en || p.title || "",
+      title: typeof p.title === "string" ? p.title : (p.title?.en || (p.title && Object.values(p.title).find(v => typeof v === "string")) || ""),
       slug: p.slug,
       image: Array.isArray(p.image) ? p.image[0] : p.image || null,
       price: p.prices?.price || 0,
@@ -832,7 +832,7 @@ const fallbackMongoAutocomplete = async (query) => {
     suggestions.push({
       type: "brand",
       id: String(b._id),
-      title: b.name?.en || b.name || "",
+      title: typeof b.name === "string" ? b.name : (b.name?.en || (b.name && Object.values(b.name).find(v => typeof v === "string")) || ""),
       slug: b.slug,
       image: b.logo || null,
     });
@@ -843,7 +843,7 @@ const fallbackMongoAutocomplete = async (query) => {
     suggestions.push({
       type: "category",
       id: String(c._id),
-      title: c.name?.en || c.name || "",
+      title: typeof c.name === "string" ? c.name : (c.name?.en || (c.name && Object.values(c.name).find(v => typeof v === "string")) || ""),
       slug: c.slug,
       image: c.icon || null,
     });
@@ -960,7 +960,7 @@ const searchService = {
         return {
           type: "product",
           id: src.id || hit._id,
-          title: src.title?.en || src.title?.de || "",
+          title: typeof src.title === "string" ? src.title : (src.title?.en || src.title?.de || (src.title && Object.values(src.title).find(v => typeof v === "string")) || ""),
           slug: src.slug,
           image: Array.isArray(src.image) ? src.image[0] : src.image || null,
           price: src.prices?.price || 0,

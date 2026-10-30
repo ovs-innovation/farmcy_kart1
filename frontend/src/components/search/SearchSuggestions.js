@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import React, { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/router";
 import { IoSearchOutline } from "react-icons/io5";
@@ -157,7 +158,7 @@ const SearchSuggestions = ({ searchText, onSelect, showSuggestions, onClose }) =
                 <span className="flex-shrink-0 w-8 h-8 rounded bg-gray-100 flex items-center justify-center overflow-hidden">
                   <img
                     src={suggestion.image}
-                    alt={suggestion.title}
+                    alt={getSafeString(suggestion?.title, null, "")}
                     className="object-contain w-8 h-8"
                   />
                 </span>
@@ -174,7 +175,7 @@ const SearchSuggestions = ({ searchText, onSelect, showSuggestions, onClose }) =
               )}
               <div className="flex-1 min-w-0">
                 <div className="text-sm font-medium text-gray-800 truncate">
-                  {suggestion.title}
+                  {getSafeString(suggestion?.title, null, "")}
                 </div>
                 <div className="text-xs text-gray-500 capitalize flex items-center gap-2">
                   <span>{suggestion.type}</span>

@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import { useState, useContext } from "react";
 import { useCart } from "react-use-cart";
 import { UserContext } from "@context/UserContext";
@@ -74,11 +75,9 @@ const useAddToCart = () => {
           : undefined;
     updatedProduct.wholePrice = product?.wholePrice;
 
+    updatedProduct.title = getSafeString(product.title, null, "Product");
+    const titleText = updatedProduct.title;
     const available = getAvailableStock(product);
-    const titleText =
-      typeof product.title === "object"
-        ? product.title?.en || "Product"
-        : product.title || "Product";
 
     if (result !== undefined) {
       if (result?.quantity + quantityToAdd <= available) {

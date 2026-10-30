@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import dayjs from "dayjs";
 import React, { useEffect, useState, useContext } from "react";
 import Link from "next/link";
@@ -247,7 +248,7 @@ const Invoice = ({ data, printRef, globalSetting, currency }) => {
                   </span>
                 </div>
                 <p className="text-sm font-semibold text-gray-800 line-clamp-2 mb-1">
-                  {item.title}
+                  {getSafeString(item?.title, null, "Product")}
                 </p>
                 <div className="flex items-center justify-between text-xs mt-1">
                   <span className="text-gray-600">

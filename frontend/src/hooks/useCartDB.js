@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import { useCallback, useContext, useEffect } from "react";
 import { useCart } from "react-use-cart";
 import { UserContext } from "@context/UserContext";
@@ -26,9 +27,8 @@ export const normalizeServerCart = (serverCart, isWholesaler = false, existingIt
       const productId = isPopulated ? String(product._id) : String(product);
       const existing = existingMap.get(productId);
 
-      const title = isPopulated
-        ? product.title?.en || product.title || existing?.title || "Product"
-        : existing?.title || "Product";
+      const rawTitle = isPopulated ? (product.title || existing?.title) : (existing?.title);
+      const title = getSafeString(rawTitle, null, "Product");
 
       const image = isPopulated
         ? Array.isArray(product.image)

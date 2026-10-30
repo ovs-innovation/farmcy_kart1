@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import Link from "next/link";
 import { useQuery } from "@tanstack/react-query";
 import { FiBell } from "react-icons/fi";
@@ -58,11 +59,11 @@ const WebsiteAnnouncements = () => {
                 )}
                 <span className="min-w-0">
                   <span className="font-semibold text-gray-800 text-sm block">
-                    {item.title}
+                    {getSafeString(item?.title, null, "")}
                   </span>
                   {item.description ? (
                     <span className="text-xs text-gray-600 line-clamp-2">
-                      {item.description}
+                      {getSafeString(item?.description, null, "")}
                     </span>
                   ) : null}
                 </span>

@@ -1681,11 +1681,11 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                             <div className="mt-8 border border-gray-200 rounded-lg p-6 bg-white">
                               <div className="flex items-center gap-3 mb-4">
                                 <h2 className="text-xl font-semibold text-gray-800">
-                                  {product.composition.title || "Composition"}
+                                  {showingTranslateValue(product.composition.title) || "Composition"}
                                 </h2>
                               </div>
                               <p className="text-sm text-gray-600 leading-relaxed text-justify">
-                                {product.composition.description}
+                                {showingTranslateValue(product.composition.description)}
                               </p>
                             </div>
                           )}
@@ -1698,13 +1698,13 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <img src={product.productHighlights.icon} alt="" className="w-10 h-10" />
                                 )}
                                 <h2 className="text-xl font-semibold text-gray-800">
-                                  {product.productHighlights.title || "Product Highlights"}
+                                  {showingTranslateValue(product.productHighlights.title) || "Product Highlights"}
                                 </h2>
                               </div>
                               <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 text-justify">
                                 {product.productHighlights.items.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
-                                    {item}
+                                    {showingTranslateValue(item)}
                                   </li>
                                 ))}
                               </ul>
@@ -1859,7 +1859,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                   <div key={idx} className="mb-6">
                                     <div className="flex items-center gap-3 mb-4">
                                       <h2 className="text-xl font-semibold text-gray-800">
-                                        {section.name} of {dynamicTitle || showingTranslateValue(product?.title)}
+                                        {showingTranslateValue(section.name)} of {dynamicTitle || showingTranslateValue(product?.title)}
                                       </h2>
                                     </div>
                                     <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 text-justify">
@@ -1867,7 +1867,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                         ?.filter(sub => sub?.type !== "paragraph" && (sub?.key || sub?.value))
                                         .map((sub, subIdx) => (
                                           <li key={subIdx}>
-                                            <strong>{sub.key || sub.title}:</strong> {sub.value || sub.content}
+                                            <strong>{showingTranslateValue(sub.key || sub.title)}:</strong> {showingTranslateValue(sub.value || sub.content)}
                                           </li>
                                         ))}
                                     </ul>
@@ -1912,7 +1912,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                               <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 text-justify">
                                 {product.howToUse.items.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
-                                    {item}
+                                    {showingTranslateValue(item)}
                                   </li>
                                 ))}
                               </ul>
@@ -1933,7 +1933,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                               <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 text-justify">
                                 {product.safetyInformation.items.map((item, idx) => (
                                   <li key={idx} className="leading-relaxed">
-                                    {item}
+                                    {showingTranslateValue(item)}
                                   </li>
                                 ))}
                               </ul>
@@ -1960,7 +1960,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                                     <ul className="list-disc list-inside space-y-2 text-sm text-gray-600 text-justify">
                                       {subsection.items.map((item, itemIdx) => (
                                         <li key={itemIdx} className="leading-relaxed">
-                                          {item}
+                                          {showingTranslateValue(item)}
                                         </li>
                                       ))}
                                     </ul>
@@ -2032,7 +2032,7 @@ const ProductScreen = ({ product, attributes, relatedProducts }) => {
                               <div className="space-y-2 text-sm text-gray-600 text-justify">
                                 {product.manufacturerDetails.items.map((item, idx) => (
                                   <p key={idx} className="leading-relaxed">
-                                    {item}
+                                    {showingTranslateValue(item)}
                                   </p>
                                 ))}
                               </div>

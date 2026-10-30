@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import dayjs from "dayjs";
 import relativeTime from "dayjs/plugin/relativeTime";
 import { FiBell, FiTrash2 } from "react-icons/fi";
@@ -48,7 +49,7 @@ const NotificationListItem = ({
         >
           <img
             src={item.image}
-            alt={item.title}
+            alt={getSafeString(item?.title, null, "")}
             className="w-full h-full object-cover"
           />
         </button>
@@ -71,7 +72,7 @@ const NotificationListItem = ({
               compact ? "text-sm truncate" : "text-base"
             }`}
           >
-            {item.title}
+            {getSafeString(item?.title, null, "")}
           </span>
           {item.status === "unread" && (
             <span className="mt-1.5 w-2 h-2 rounded-full bg-store-500 shrink-0" />
@@ -83,7 +84,7 @@ const NotificationListItem = ({
               compact ? "text-xs line-clamp-2" : "text-sm line-clamp-3"
             }`}
           >
-            {item.description}
+            {getSafeString(item?.description, null, "")}
           </span>
         ) : null}
         <span className="mt-2 flex flex-wrap items-center gap-2">

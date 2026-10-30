@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import {
   Document,
   Font,
@@ -532,7 +533,7 @@ const InvoiceForDownload = ({
                     <Text style={styles.tableCellNumeric}>{i + 1}</Text>
                   </View>
                   <View style={{ width: "27%" }}>
-                    <Text style={styles.tableCell}>{item.title}</Text>
+                    <Text style={styles.tableCell}>{getSafeString(item?.title, null, "Product")}</Text>
                   </View>
                   <View style={{ width: "8%" }}>
                     <Text style={styles.tableCell}>

@@ -1,3 +1,4 @@
+import { getSafeString } from "@utils/translate";
 import useUtilsFunction from "@hooks/useUtilsFunction";
 import React, { useContext } from "react";
 import { UserContext } from "@context/UserContext";
@@ -22,7 +23,7 @@ const OrderTable = ({ data, currency }) => {
               {i + 1}
             </th>
             <td className="product-column px-2 py-1 font-normal text-gray-700 border-r border-gray-200 print:px-1 print:py-1 print:text-xs print:break-words">
-              {item.title}
+              {getSafeString(item?.title, null, "Product")}
             </td>
             <td className="px-2 py-1 whitespace-nowrap font-normal text-gray-700 text-center border-r border-gray-200 print:px-1 print:py-1 print:text-xs">
               {item.hsn || "-"}
