@@ -34,9 +34,25 @@ const useUtilsFunction = () => {
 
   //for translation
   const showingTranslateValue = (data) => {
-    return data !== undefined && Object?.keys(data).includes(lang)
-      ? data[lang]
-      : data?.en;
+    if (data === null || data === undefined) return "";
+    if (typeof data === "string") return data;
+    if (typeof data === "number" || typeof data === "boolean") return String(data);
+    if (typeof data === "object") {
+      if (lang && data[lang] && typeof data[lang] === "string") {
+        return data[lang];
+      }
+      if (data.en && typeof data.en === "string") {
+        return data.en;
+      }
+      const values = Object.values(data);
+      for (const val of values) {
+        if (typeof val === "string" && val.trim() !== "") {
+          return val;
+        }
+      }
+      return "";
+    }
+    return "";
   };
 
   const showingImage = (data) => {

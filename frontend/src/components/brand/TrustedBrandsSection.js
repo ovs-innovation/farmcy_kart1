@@ -23,7 +23,7 @@ const TrustedBrandsSection = ({ brands = [] }) => {
           {/* Left Side - Title and Description */}
           <div className="order-1 lg:order-1">
             <h2 className="text-2xl md:text-3xl lg:text-3xl font-bold text-gray-900 mt-10 mb-4">
-              {storeCustomizationSetting?.home?.brand_title || "Top Brands You Can Trust"}
+              {showingTranslateValue(storeCustomizationSetting?.home?.brand_title) || "Top Brands You Can Trust"}
             </h2>
 
 

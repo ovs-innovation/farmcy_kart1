@@ -2,11 +2,13 @@ import React from "react";
 import { useRouter } from "next/router";
 import { FiShoppingBag, FiBriefcase, FiPlus } from "react-icons/fi";
 import useGetSetting from "@hooks/useGetSetting";
+import useUtilsFunction from "@hooks/useUtilsFunction";
 import { getPalette } from "@utils/themeColors";
 
 const HealthCheckupBanner = () => {
   const router = useRouter();
   const { storeCustomizationSetting } = useGetSetting();
+  const { showingTranslateValue } = useUtilsFunction();
   const storeColor = storeCustomizationSetting?.theme?.color || "green";
   const palette = getPalette(storeColor);
 
@@ -49,12 +51,12 @@ const HealthCheckupBanner = () => {
 
           {/* Main Headline */}
           <h2 className="text-3xl md:text-4xl lg:text-5xl font-bold text-white uppercase tracking-wide mb-4 drop-shadow-lg">
-            {storeCustomizationSetting?.home?.health_banner_title || "HEALTHY WEEKEND CHECK UP"}
+            {showingTranslateValue(storeCustomizationSetting?.home?.health_banner_title) || "HEALTHY WEEKEND CHECK UP"}
           </h2>
 
           {/* Sub-headline */}
           <p className="text-base md:text-lg lg:text-xl text-white text-opacity-95 mb-8 max-w-2xl mx-auto leading-relaxed drop-shadow-md">
-            {storeCustomizationSetting?.home?.health_banner_description || "Book your comprehensive health checkup with trusted local labs today!"}
+            {showingTranslateValue(storeCustomizationSetting?.home?.health_banner_description) || "Book your comprehensive health checkup with trusted local labs today!"}
           </p>
 
           {/* Buy Now Button */}
