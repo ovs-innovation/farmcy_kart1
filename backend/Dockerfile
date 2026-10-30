@@ -9,7 +9,7 @@ WORKDIR /app
 
 # Install only production dependencies deterministically using the lockfile
 COPY package.json package-lock.json ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --omit=dev --ignore-scripts || npm install --omit=dev --ignore-scripts
 
 # ---------------------------------------------------------
 # Stage 2: Production runner
