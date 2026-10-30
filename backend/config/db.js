@@ -34,14 +34,20 @@ const logConnectionTips = (err) => {
 };
 
 
+const getMongoUri = () => {
+  const uri = process.env.MONGO_URI || process.env.MONGODB_URI;
+  return uri ? uri.trim() : null;
+};
+
 const connectDB = async () => {
   try {
-    if (!process.env.MONGO_URI) {
+    const mongoUri = getMongoUri();
+    if (!mongoUri) {
       throw new Error("MONGO_URI is not defined in environment variables. Please set MONGO_URI in your .env file.");
     }
 
     // Cleanup URI (remove any trailing spaces or hidden characters)
-    const mongoUri = process.env.MONGO_URI.trim();
+    // mongoUri retrieved from getMongoUri()
 
     // await mongoose.connect(mongoUri, {
     //   useFindAndModify: false,
