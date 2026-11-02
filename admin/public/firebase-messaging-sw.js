@@ -2,12 +2,12 @@ importScripts("https://www.gstatic.com/firebasejs/9.0.0/firebase-app-compat.js")
 importScripts("https://www.gstatic.com/firebasejs/9.0.0/firebase-messaging-compat.js");
 
 firebase.initializeApp({
-  apiKey: "AIzaSyDUBq2cp6dQhkxGUlwQ01y1Az8MsNiL9Ic",
-  authDomain: "farmacykart-f0650.firebaseapp.com",
-  projectId: "farmacykart-f0650",
-  storageBucket: "farmacykart-f0650.firebasestorage.app",
-  messagingSenderId: "902396666658",
-  appId: "1:902396666658:web:e37de93d37a9958968fb7b",
+  apiKey: "AIzaSyBN6Jr4WVvPu8c46n5h6xy8zJnn3PNww0A",
+  authDomain: "farmacykart-5e3cd.firebaseapp.com",
+  projectId: "farmacykart-5e3cd",
+  storageBucket: "farmacykart-5e3cd.firebasestorage.app",
+  messagingSenderId: "255857506321",
+  appId: "1:255857506321:web:2e2b6cac6663443bced9b0",
 });
 
 const messaging = firebase.messaging();
